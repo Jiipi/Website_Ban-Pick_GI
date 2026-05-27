@@ -1,0 +1,80 @@
+/* ═══════════════════════════════════════════════
+   BUTTONS — Primary, Outline, Gold variants
+   ═══════════════════════════════════════════════ */
+
+@layer components {
+  .btn-primary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.7rem 1.6rem;
+    border-radius: var(--radius-xl);
+    font-weight: 800;
+    font-size: 0.85rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    border: none;
+    cursor: pointer;
+    background: linear-gradient(135deg, #22d3ee, #38bdf8, #818cf8);
+    color: #0f172a;
+    box-shadow: 0 4px 20px rgba(56, 189, 248, 0.25);
+    transition: all 0.2s ease;
+  }
+  .btn-primary:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 28px rgba(56, 189, 248, 0.4);
+    filter: brightness(1.1);
+  }
+  .btn-primary:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+    transform: none;
+    filter: none;
+  }
+
+  .btn-outline {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.7rem 1.6rem;
+    border-radius: var(--radius-xl);
+    font-weight: 700;
+    font-size: 0.85rem;
+    letter-spacing: 0.04em;
+    border: 1.5px solid rgba(148, 163, 184, 0.25);
+    background: rgba(15, 23, 42, 0.4);
+    color: #e2e8f0;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+  .btn-outline:hover {
+    border-color: var(--cyan);
+    color: var(--cyan);
+    background: rgba(34, 211, 238, 0.08);
+  }
+
+  .btn-gold {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.7rem 1.6rem;
+    border-radius: var(--radius-xl);
+    font-weight: 800;
+    font-size: 0.85rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    border: 1.5px solid rgba(251, 191, 36, 0.4);
+    background: linear-gradient(135deg, rgba(251, 191, 36, 0.15), rgba(245, 158, 11, 0.08));
+    color: #fbbf24;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+  .btn-gold:hover {
+    border-color: var(--gold);
+    box-shadow: 0 0 25px var(--gold-glow);
+    filter: brightness(1.1);
+  }
+}

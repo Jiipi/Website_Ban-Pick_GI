@@ -1,0 +1,99 @@
+1. Tổng quan dự án
+1.1. Bối cảnh và lý do chọn đề tài
+Trong bối cảnh toàn cầu hóa và hội nhập quốc tế, tiếng Anh đã trở thành công cụ giao tiếp thiết yếu trong học tập, công việc và đời sống. Nhu cầu học tiếng Anh, đặc biệt thông qua các nền tảng trực tuyến, ngày càng tăng nhanh trong những năm gần đây.
+Hiện nay, các nền tảng học tiếng Anh phổ biến như Duolingo, ELSA Speak, Cake hay Memrise đã giải quyết được phần nào nhu cầu của người học. Tuy nhiên, các nền tảng này vẫn tồn tại một số hạn chế: nội dung được soạn sẵn theo lộ trình cố định, mức độ cá nhân hóa chưa cao, các bài luyện nói thường gò bó trong kịch bản có sẵn và phản hồi của hệ thống thiếu tính tự nhiên, linh hoạt. Người học cũng khó kết hợp việc học với những nội dung mà bản thân thực sự quan tâm như video YouTube, podcast hay bài báo yêu thích.
+Sự phát triển mạnh mẽ của các mô hình ngôn ngữ lớn (Large Language Models – LLM) cùng với các công nghệ web hiện đại như Next.js, Supabase đã mở ra cơ hội xây dựng một nền tảng học tiếng Anh thông minh hơn, cá nhân hóa cao và có khả năng phản hồi tự nhiên gần với người thật. Xuất phát từ thực tế đó, đề tài "Xây dựng website học tiếng Anh ứng dụng trí tuệ nhân tạo" được lựa chọn để nghiên cứu và triển khai trong khuôn khổ môn học Các công nghệ mới trong phát triển web.
+1.2. Mô tả dự án
+Dự án xây dựng một website học tiếng Anh đa chức năng, ứng dụng AI để cá nhân hóa quá trình học tập của từng người dùng. Hệ thống cho phép người dùng đánh giá trình độ ban đầu, luyện nói với AI thông qua các kịch bản nhập vai, học từ vựng trực tiếp từ nội dung mà người dùng quan tâm (video YouTube, bài báo, podcast), quản lý từ vựng cá nhân với thuật toán lặp lại ngắt quãng, luyện viết với chức năng chấm bài tự động theo tiêu chí IELTS, đồng thời nhận thông báo nhắc nhở học tập định kỳ.
+1.3. Đối tượng người dùng
+- Học sinh, sinh viên có nhu cầu học và cải thiện trình độ tiếng Anh
+- Người đi làm muốn nâng cao khả năng giao tiếp tiếng Anh phục vụ công việc
+- Người chuẩn bị cho các kỳ thi chứng chỉ quốc tế (IELTS, TOEIC)
+- Người tự học muốn rèn luyện tiếng Anh thông qua nội dung yêu thích cá nhân
+1.4. Công nghệ sử dụng
+Thành phần
+Công nghệ
+Frontend & Fullstack Framework
+Next.js (App Router, Server Components, Server Actions)
+Ngôn ngữ lập trình
+TypeScript
+UI Framework
+Tailwind CSS, shadcn/ui
+Backend-as-a-Service
+Supabase (PostgreSQL, Authentication, Storage, Realtime)
+Bảo mật dữ liệu
+Row Level Security (RLS) của Supabase
+Tìm kiếm theo ngữ nghĩa
+pgvector (PostgreSQL extension)
+Trí tuệ nhân tạo (LLM)
+Google Gemini API, OpenRouter (DeepSeek, Llama – các model miễn phí)
+Xử lý giọng nói
+Web Speech API (Speech-to-Text và Text-to-Speech)
+Triển khai
+Vercel (deployment, Edge Functions)
+Quản lý mã nguồn
+Git, GitHub
+1.5. Phạm vi dự án
+Trong khuôn khổ môn học, dự án tập trung phát triển phiên bản web (responsive, hỗ trợ cả desktop và mobile browser), không bao gồm ứng dụng mobile native. Hệ thống sử dụng các dịch vụ AI miễn phí (free tier) phục vụ mục đích học tập và minh họa, chưa triển khai các tính năng thanh toán hay gói trả phí. Nội dung học tập tập trung vào tiếng Anh phổ thông, chưa mở rộng sang các ngôn ngữ khác hoặc các lĩnh vực chuyên ngành sâu.
+2. Mục tiêu
+2.1. Mục tiêu tổng quát
+Xây dựng và triển khai thành công một website học tiếng Anh hoàn chỉnh, ứng dụng các công nghệ web hiện đại kết hợp trí tuệ nhân tạo, mang lại trải nghiệm học tập cá nhân hóa và hiệu quả cho người dùng. Đồng thời, thông qua quá trình thực hiện đề tài, người làm có cơ hội tiếp cận, tìm hiểu và làm chủ các công nghệ mới trong phát triển web hiện nay.
+2.2. Mục tiêu về sản phẩm
+Triển khai đầy đủ 7 nhóm chức năng đã đề xuất: xác thực người dùng, đánh giá trình độ, luyện nói với AI, học từ vựng từ nội dung thực tế, quản lý từ vựng, luyện viết và hệ thống thông báo
+Cá nhân hóa nội dung học tập dựa trên trình độ, mục tiêu và lịch sử học của từng người dùng
+Xây dựng giao diện thân thiện, trực quan, dễ sử dụng trên cả máy tính và thiết bị di động
+Đảm bảo dữ liệu của người dùng được bảo mật, phân quyền truy cập rõ ràng
+2.3. Mục tiêu về công nghệ
+Đây là mục tiêu trọng tâm của môn học Các công nghệ mới trong phát triển web. Cụ thể, dự án hướng tới việc nắm vững và áp dụng được:
+- Next.js App Router: làm chủ kiến trúc mới với Server Components, Server Actions, streaming UI và caching strategy
+- Supabase: triển khai authentication, thiết kế schema PostgreSQL, viết Row Level Security (RLS) policy, sử dụng Realtime cho các tính năng cập nhật trực tiếp
+- Vector Search với pgvector: ứng dụng tìm kiếm theo ngữ nghĩa cho gợi ý từ vựng và tìm nội dung tương tự
+- Tích hợp LLM API: thiết kế lớp trừu tượng (abstraction layer) để dễ dàng chuyển đổi giữa các nhà cung cấp (Gemini, OpenRouter), xử lý streaming response, tối ưu prompt cho từng tác vụ cụ thể
+- Web Speech API: ứng dụng các API mới của trình duyệt cho nhận diện và tổng hợp giọng nói
+- Triển khai trên Vercel: làm quen với quy trình CI/CD tự động, quản lý môi trường (development, preview, production), Edge Functions
+3. Chức năng
+STT
+Chức năng
+Mô tả
+1
+Xác thực người dùng
+    - Đăng ký tài khoản mới: Cho phép người dùng tại tài khoản với tên đăng nhập/email và mật khẩu cũng như một số thông tin cá nhân như họ, sdt, …
+    - Đăng nhập: người dùng có thể đăng nhập với tên đăng nhập/email và mật khẩu
+    - Quên mật khẩu, chỉnh sửa mật khẩu: cho phép người dùng lấy lại, chỉnh sửa mật khẩu tài khoản
+    - Chỉnh sửa hồ sơ cá nhân: người dùng có 
+2
+Đánh giá trình dộ
+    - Thực hiện đưa bài kiểm tra trình độ tiếng anh của người dùng khi đăng ký tài khoản: Web đưa các câu hỏi để người dùng nhập câu trả lời (nhập từ bàn phím hoặc nói)
+    - Khảo sát mục tiêu học tập: thi toeic, ielts, giao tiếp công việc, đi du lịch, xem phim không cần phụ đề, đi du lịch, … 
+    - Lưu thông tin về trình độ, mục tiêu, … của người dùng sau khi hoàn thành đánh giá
+3
+Luyện nói với AI
+    - Cho phép người dùng chọn một “nhân vật” để nói chuyện
+    - AI sẽ thực hiện phân tích câu nói của người dùng qua mic và thực hiện đưa ra đánh giá giúp cải thiện câu nói
+    - Hiển thị panel thông báo lỗi
+4
+Học từ vựng
+    - Người dùng dán link YouTube / bài báo / podcast và web trích xuất nội dung
+    - Với YouTube lấy tráncripts có sẵn (nếu video có phụ đề) hoặc gọi Whisper transcribe; hiển thị phụ đề song song với video
+    - Chọn vào một từ bất kỳ thì hiển thị một popup chứa thông tin: nghĩa của từ; phát âm; ví dụ thêm; nút lưu vào danh sá5ch từ cá nhân
+    - AI tự động highlight các từ vượt trình độ của user (so với CEFR level đã lưu)
+    - Sau khi xem xong, AI tự sinh quiz từ chính nội dung đó: điền từ, dịch câu, nghe và gõ lại
+5
+Quản lý từ vựng
+    - Hiển thị danh sách các từ vựng mà người dùng đã lưu
+    - Mỗi từ có nghĩa, ví dụ context lúc gặp, phát âm, loại của từ, đưa 1 số từ dồng nghĩa
+    - Mỗi ngày web gợi ý các từ cần ôn và đưa ra các bài kiểm tra nhỏ để xác nhận người dùng đã nhớ từ vựng
+    - Người dùng có thể học dựa trên các bộ từ vựng theo chủ đề có sẵn
+    - Biều đồ tiến độ học từ vựng
+6
+Luyện tập viết bài
+    - Người dùng viết bài essay/email/câu tiếng anh theo chủ đề đựa đưa ra.
+    - AI thực hiện chấm bài theo các tiêu chí (như IELTS Writing): Task Achievement, Coherence, Lexical Resource, Grammar
+    - Highlight từng lỗi inline trong text → click vào để xem giải thích
+    - Gợi ý phiên bản viết lại tốt hơn
+    - Lưu lịch sử để theo dõi tiến độ qua thời gian
+    - Biểu đồ điểm số 4 tiêu chí qua các bài đã viết
+    - Theo dõi và bấm giờ thời gian viết với essay, email để người dùng tham khảo
+7
+Thông báo
+    Thực hiện gửi thông báo cho người dùng như nhắc nhở thực hiện học từ vựng, tiến độ học tập từ vựng, cập nhật của hệ thống, …

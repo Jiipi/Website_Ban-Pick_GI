@@ -1,0 +1,48 @@
+/* ═══════════════════════════════════════════════
+   DESIGN TOKENS — Genshin Ban/Pick
+   ═══════════════════════════════════════════════ */
+
+:root {
+  color-scheme: dark;
+
+  /* ── Core Palette ── */
+  --bg-deep: #060a14;
+  --bg-base: #0a0e1a;
+  --bg-surface: #0f172a;
+  --bg-elevated: #1e293b;
+
+  /* ── Glass ── */
+  --glass-bg: rgba(15, 23, 42, 0.55);
+  --glass-border: rgba(148, 163, 184, 0.12);
+  --glass-blur: 18px;
+
+  /* ── Team Colors ── */
+  --blue-400: #38bdf8;
+  --blue-300: #7dd3fc;
+  --blue-glow: rgba(56, 189, 248, 0.25);
+  --blue-surface: rgba(8, 145, 178, 0.10);
+  --blue-border: rgba(34, 211, 238, 0.35);
+
+  --red-400: #fb7185;
+  --red-300: #fda4af;
+  --red-glow: rgba(251, 113, 133, 0.25);
+  --red-surface: rgba(225, 29, 72, 0.10);
+  --red-border: rgba(251, 113, 133, 0.35);
+
+  /* ── Accents ── */
+  --gold: #fbbf24;
+  --gold-glow: rgba(251, 191, 36, 0.30);
+  --amethyst: #a78bfa;
+  --cyan: #22d3ee;
+
+  /* ── Typography ── */
+  --font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, sans-serif;
+
+  /* ── Spacing rhythm ── */
+  --radius-sm: 0.5rem;
+  --radius-md: 0.75rem;
+  --radius-lg: 1rem;
+  --radius-xl: 1.25rem;
+  --radius-2xl: 1.5rem;
+  --radius-3xl: 2rem;
+}

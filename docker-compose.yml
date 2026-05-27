@@ -1,0 +1,41 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL}
+        NEXT_PUBLIC_SUPABASE_ANON_KEY: ${NEXT_PUBLIC_SUPABASE_ANON_KEY}
+    container_name: banpick-app
+    ports:
+      - "8000:3000"
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+      - NEXT_PUBLIC_SUPABASE_URL=${NEXT_PUBLIC_SUPABASE_URL}
+      - NEXT_PUBLIC_SUPABASE_ANON_KEY=${NEXT_PUBLIC_SUPABASE_ANON_KEY}
+      - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
+      - COST_CATALOG_PATH=/app/data/cost-catalog.json
+      - PORT=3000
+    volumes:
+      - ./data:/app/data
+    restart: unless-stopped
+
+    # Auto-rebuild when source code changes (use: docker compose watch)
+    develop:
+      watch:
+        # Rebuild + restart when source code changes
+        - action: rebuild
+          path: ./src
+        # Rebuild + restart when config files change
+        - action: rebuild
+          path: ./next.config.ts
+        - action: rebuild
+          path: ./package.json
+        - action: rebuild
+          path: ./package-lock.json
+        - action: rebuild
+          path: ./prisma
+        # Sync public assets without full rebuild
+        - action: sync
+          path: ./public
+          target: /app/public

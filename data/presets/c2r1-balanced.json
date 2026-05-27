@@ -1,0 +1,15 @@
+{
+  "id": "c2r1-balanced",
+  "name": "C2R1 Balanced",
+  "description": "Balanced: max C2, max R1 (5★), luật phổ biến nhất",
+  "costPerPoint": 10,
+  "constraints": {
+    "maxConstellation": 2,
+    "maxWeaponRefinement": 1,
+    "weaponRarityLimit": 5,
+    "forceF2PWeapon": false,
+    "bannedCharacterIds": [],
+    "bannedWeaponIds": [],
+    "customLabel": "C2R1 Balanced"
+  }
+}

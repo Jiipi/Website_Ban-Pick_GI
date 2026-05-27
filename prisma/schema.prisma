@@ -1,0 +1,276 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model User {
+  id        String   @id // Supabase auth.users.id (UUID)
+  email     String   @unique
+  name      String?
+  role      String   @default("REFEREE") // ADMIN | REFEREE
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  rooms     Room[]
+}
+
+model Room {
+  id             String           @id @default(uuid())
+  code           String           @unique
+  status         String           @default("WAITING")
+  costPerPoint   Int              @default(10)
+  blueBankTime   Int              @default(120)
+  redBankTime    Int              @default(120)
+  lastTurnStartedAt DateTime?
+  constraints    Json?              // Tournament constraint rules
+  draftTemplate  Json?              // Custom draft turn order
+
+  // Pause / Dispute
+  isPaused       Boolean          @default(false)
+  pausedAt       DateTime?
+  pauseReason    String?            // DISPUTE | TECHNICAL | BREAK
+
+  // Series (Bo-X)
+  seriesId       String?
+  seriesFormat   String?            // BO1 | BO3 | BO5 | BO7
+  gameNumber     Int?
+  fearlessDraft  Boolean          @default(false)
+
+  // Team Branding
+  blueTeamName   String?
+  blueTeamLogo   String?
+  blueTeamColor  String?            // hex "#3B82F6"
+  redTeamName    String?
+  redTeamLogo    String?
+  redTeamColor   String?            // hex "#EF4444"
+
+  // Broadcast
+  casterClientIds String[]         @default([])
+  spectatorDelay  Int              @default(0) // 0|30|60|90 seconds
+  discordWebhookUrl String?
+  isPublic        Boolean          @default(true)
+
+  hostUserId     String?
+  host           User?            @relation(fields: [hostUserId], references: [id], onDelete: SetNull)
+  hostName       String?
+  hostClientId   String?
+
+  bluePlayerName String?
+  blueClientId   String?
+  blueUid        String?
+  blueNickname   String?
+  blueAvatarUrl  String?
+
+  redPlayerName  String?
+  redClientId    String?
+  redUid         String?
+  redNickname    String?
+  redAvatarUrl   String?
+
+  logs           DraftLog[]
+  builds         CharacterBuild[]
+  messages       ChatMessage[]
+
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  @@index([hostUserId])
+  @@index([seriesId, gameNumber])
+}
+
+model DraftLog {
+  id          Int      @id @default(autoincrement())
+  roomId      String
+  player      String
+  action      String
+  characterId String
+  turnNumber  Int
+  room        Room     @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+
+  @@unique([roomId, characterId])
+  @@index([roomId, turnNumber])
+}
+
+model CharacterBuild {
+  id           Int      @id @default(autoincrement())
+  roomId       String
+  player       String
+  characterId  String
+  rarity       Int
+  consLevel    Int
+  weaponRarity Int
+  totalCost    Int
+  source       String   @default("MANUAL") // MANUAL | ENKA
+  enkaSnapshot Json?
+  room         Room     @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([roomId, player, characterId])
+  @@index([roomId, player])
+}
+
+model LobbyPlayer {
+  id              String   @id @default(cuid())
+  clientId        String   @unique
+  uid             String
+  nickname        String
+  avatarUrl       String?
+  displayName     String?  // Custom display name (overrides nickname)
+  customAvatarUrl String?  // Custom avatar chosen from showcase
+  status          String   @default("ONLINE") // ONLINE, INVITED, IN_ROOM, OFFLINE
+  roomCode        String?  // room code they're invited to
+  team            String?  // BLUE / RED
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model ChatMessage {
+  id        Int      @id @default(autoincrement())
+  roomId    String
+  sender    String
+  message   String
+  role      String   @default("HOST")
+  room      Room     @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@index([roomId, createdAt])
+}
+
+model Tournament {
+  id           String   @id @default(cuid())
+  slug         String   @unique
+  name         String
+  description  String?
+  format       String   @default("SINGLE_ELIM") // SINGLE_ELIM | DOUBLE_ELIM | ROUND_ROBIN
+  status       String   @default("UPCOMING")    // UPCOMING | ONGOING | FINISHED | CANCELLED
+  maxTeams     Int      @default(8)              // 4 | 8 | 16 | 32
+  startDate    DateTime?
+  endDate      DateTime?
+  organizerId  String?                           // User.id of creator
+  organizerName String?                          // Display name snapshot
+  bannerUrl    String?
+  prizeInfo    String?
+  discordWebhookUrl String?
+
+  participants TournamentParticipant[]
+  matches      TournamentMatch[]
+
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([status])
+  @@index([organizerId])
+}
+
+model TournamentParticipant {
+  id            String     @id @default(cuid())
+  tournamentId  String
+  tournament    Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  playerUid     String
+  playerNickname String
+  playerAvatarUrl String?
+  seed          Int?
+  eliminated    Boolean    @default(false)
+  joinedAt      DateTime   @default(now())
+
+  @@unique([tournamentId, playerUid])
+  @@index([tournamentId, seed])
+}
+
+model TournamentMatch {
+  id             String     @id @default(cuid())
+  tournamentId   String
+  tournament     Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  round          Int                                       // 1 = first round, increases toward final
+  matchNumber    Int                                       // Position within round (0-indexed)
+  blueParticipantId String?                                // null = BYE or TBD
+  redParticipantId  String?
+  winnerParticipantId String?                              // null = not played yet
+  roomCode       String?                                   // Linked Room.code if draft started
+  seriesId       String?                                   // Link to series of rooms
+  seriesFormat   String?                                   // BO1 | BO3 | BO5 for this match
+  scheduledAt    DateTime?
+  completedAt    DateTime?
+
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+
+  @@unique([tournamentId, round, matchNumber])
+  @@index([tournamentId, round])
+  @@index([roomCode])
+}
+
+model Friendship {
+  id           String   @id @default(cuid())
+  requesterUid String                          // UID of player who sent request
+  addresseeUid String                          // UID of player who received
+  status       String   @default("PENDING")    // PENDING | ACCEPTED | BLOCKED
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([requesterUid, addresseeUid])
+  @@index([requesterUid, status])
+  @@index([addresseeUid, status])
+}
+
+model Notification {
+  id          String   @id @default(cuid())
+  recipientUid String                          // UID of receiver
+  type        String                           // FRIEND_REQUEST | FRIEND_ACCEPTED | TOURNAMENT_INVITE | MATCH_RESULT | ROOM_INVITE
+  title       String
+  body        String?
+  link        String?                          // URL to navigate when clicked
+  read        Boolean  @default(false)
+  metadata    Json?                            // Extra context (roomCode, tournamentSlug, fromUid, etc.)
+  createdAt   DateTime @default(now())
+
+  @@index([recipientUid, read, createdAt])
+}
+
+model ActivityEvent {
+  id        String   @id @default(cuid())
+  actorUid  String                             // Who did the action
+  type      String                             // MATCH_FINISHED | TOURNAMENT_CREATED | TOURNAMENT_FINISHED | FRIEND_ADDED | PROFILE_UPDATED
+  title     String
+  body      String?
+  link      String?
+  metadata  Json?
+  createdAt DateTime @default(now())
+
+  @@index([actorUid, createdAt])
+  @@index([createdAt])
+}
+
+model UserSettings {
+  id                  String   @id @default(cuid())
+  uid                 String   @unique             // Genshin UID
+  // ── Theme & Display ──
+  theme               String   @default("dark")    // dark | light | auto
+  language            String   @default("vi")      // vi | en
+  reducedMotion       Boolean  @default(false)
+  compactMode         Boolean  @default(false)
+  // ── Sound ──
+  soundEnabled        Boolean  @default(true)
+  soundVolume         Int      @default(70)        // 0-100
+  // ── Notifications ──
+  notifyFriendRequest Boolean  @default(true)
+  notifyTournament    Boolean  @default(true)
+  notifyMatchResult   Boolean  @default(true)
+  notifyMissions      Boolean  @default(true)
+  // ── Privacy ──
+  publicProfile       Boolean  @default(true)
+  showInLeaderboard   Boolean  @default(true)
+  // ── Draft preferences ──
+  defaultCostPerPoint Int      @default(10)
+  defaultBankTime     Int      @default(120)
+  autoSubmitBuild     Boolean  @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}

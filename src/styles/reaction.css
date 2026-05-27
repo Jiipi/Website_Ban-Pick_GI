@@ -1,0 +1,92 @@
+/* ═══════════════════════════════════
+   REACTION PREVIEW — Synergy chips
+   ═══════════════════════════════════ */
+
+.reaction-preview-panel {
+  margin-top: 8px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: rgba(15, 23, 42, 0.65);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(148, 163, 184, 0.1);
+  animation: reaction-fade-in 0.2s ease both;
+}
+
+.reaction-preview-label {
+  display: block;
+  margin-bottom: 5px;
+  color: #64748b;
+  font-size: 0.55rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.reaction-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+@keyframes reaction-fade-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Reaction chip */
+.reaction-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 7px;
+  border-radius: 6px;
+  border: 1px solid color-mix(in srgb, var(--reaction-color, #94a3b8) 35%, transparent);
+  background: color-mix(in srgb, var(--reaction-color, #94a3b8) 12%, transparent);
+  font-size: 0.6rem;
+  font-weight: 700;
+  color: var(--reaction-color, #94a3b8);
+  cursor: default;
+  transition: all 0.15s ease;
+}
+
+.reaction-chip:hover {
+  border-color: color-mix(in srgb, var(--reaction-color, #94a3b8) 60%, transparent);
+  background: color-mix(in srgb, var(--reaction-color, #94a3b8) 20%, transparent);
+  transform: translateY(-1px);
+  box-shadow: 0 3px 10px color-mix(in srgb, var(--reaction-color, #94a3b8) 20%, transparent);
+}
+
+.reaction-chip-icon {
+  font-size: 0.65rem;
+}
+
+.reaction-chip-name {
+  font-weight: 800;
+}
+
+.reaction-chip-tier {
+  font-size: 0.5rem;
+  font-weight: 950;
+  opacity: 0.7;
+  margin-left: 1px;
+}
+
+/* Tier-specific glow */
+.reaction-chip-s {
+  box-shadow: 0 0 8px color-mix(in srgb, var(--reaction-color, #fbbf24) 15%, transparent);
+}
+
+.reaction-chip-s .reaction-chip-tier {
+  color: #fbbf24;
+  opacity: 1;
+}
+
+.reaction-chip-a .reaction-chip-tier {
+  color: #60a5fa;
+  opacity: 0.9;
+}
+
+.reaction-chip-b .reaction-chip-tier {
+  color: #94a3b8;
+}

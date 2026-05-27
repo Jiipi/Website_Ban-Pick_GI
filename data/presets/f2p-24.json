@@ -1,0 +1,15 @@
+{
+  "id": "f2p-24",
+  "name": "F2P 24★",
+  "description": "Chế độ F2P: C0 only, chỉ vũ khí 4★, 24 điểm/đội",
+  "costPerPoint": 6,
+  "constraints": {
+    "maxConstellation": 0,
+    "maxWeaponRefinement": 5,
+    "weaponRarityLimit": 4,
+    "forceF2PWeapon": true,
+    "bannedCharacterIds": [],
+    "bannedWeaponIds": [],
+    "customLabel": "F2P 24★"
+  }
+}

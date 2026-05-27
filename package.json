@@ -1,0 +1,32 @@
+{
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "check:architecture": "node scripts/check-architecture.mjs --verbose",
+    "start": "next start",
+    "lint": "eslint",
+    "postinstall": "prisma generate"
+  },
+  "dependencies": {
+    "@prisma/client": "^6.19.0",
+    "@supabase/ssr": "^0.10.3",
+    "@supabase/supabase-js": "latest",
+    "html2canvas": "^1.4.1",
+    "lucide-react": "latest",
+    "next": "latest",
+    "react": "latest",
+    "react-dom": "latest",
+    "zustand": "latest"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "latest",
+    "@types/node": "latest",
+    "@types/react": "latest",
+    "@types/react-dom": "latest",
+    "eslint": "latest",
+    "eslint-config-next": "latest",
+    "prisma": "^6.19.0",
+    "tailwindcss": "latest",
+    "typescript": "latest"
+  }
+}

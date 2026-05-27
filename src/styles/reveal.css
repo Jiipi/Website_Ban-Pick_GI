@@ -1,0 +1,296 @@
+/* ═══════════════════════════════════════════════
+   REVEAL — Cinematic ban/pick reveal overlay
+   ═══════════════════════════════════════════════ */
+
+/* ── Reveal overlay base ── */
+.reveal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: auto;
+}
+
+.reveal-overlay-backdrop {
+  position: absolute;
+  inset: 0;
+  animation: reveal-backdrop-in 0.15s ease-out forwards;
+}
+
+.reveal-overlay-backdrop--pick {
+  background: radial-gradient(
+    ellipse at center,
+    rgba(0, 0, 0, 0.6) 0%,
+    rgba(0, 0, 0, 0.85) 100%
+  );
+}
+
+.reveal-overlay-backdrop--ban {
+  background: radial-gradient(
+    ellipse at center,
+    rgba(40, 0, 0, 0.65) 0%,
+    rgba(10, 0, 0, 0.88) 100%
+  );
+}
+
+/* ── Pick reveal ── */
+.reveal-splash-pick {
+  position: relative;
+  z-index: 1;
+  max-width: 50vw;
+  max-height: 70vh;
+  width: 420px;
+  height: 420px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  animation: reveal-scale-in 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.reveal-splash-pick .reveal-art-container {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  border-radius: 16px;
+  overflow: hidden;
+}
+
+.reveal-glow-blue .reveal-art-container {
+  box-shadow:
+    0 0 60px rgba(34, 211, 238, 0.5),
+    0 0 120px rgba(34, 211, 238, 0.25),
+    0 0 200px rgba(34, 211, 238, 0.1);
+  border: 2px solid rgba(34, 211, 238, 0.6);
+  animation: reveal-glow-pulse-blue 1s ease-in-out infinite;
+}
+
+.reveal-glow-red .reveal-art-container {
+  box-shadow:
+    0 0 60px rgba(251, 113, 133, 0.5),
+    0 0 120px rgba(251, 113, 133, 0.25),
+    0 0 200px rgba(251, 113, 133, 0.1);
+  border: 2px solid rgba(251, 113, 133, 0.6);
+  animation: reveal-glow-pulse-red 1s ease-in-out infinite;
+}
+
+.reveal-name {
+  margin-top: 20px;
+  font-size: 2rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  text-align: center;
+  animation: reveal-name-in 0.35s 0.3s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.reveal-name--blue {
+  color: #22d3ee;
+  text-shadow:
+    0 0 20px rgba(34, 211, 238, 0.6),
+    0 0 40px rgba(34, 211, 238, 0.3);
+}
+
+.reveal-name--red {
+  color: #fb7185;
+  text-shadow:
+    0 0 20px rgba(251, 113, 133, 0.6),
+    0 0 40px rgba(251, 113, 133, 0.3);
+}
+
+/* ── Fade out wrapper ── */
+.reveal-overlay--exiting {
+  animation: reveal-fade-out 0.4s ease-in forwards;
+  pointer-events: none;
+}
+
+/* ── Ban reveal ── */
+.reveal-splash-ban {
+  position: relative;
+  z-index: 1;
+  max-width: 50vw;
+  max-height: 70vh;
+  width: 360px;
+  height: 360px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  animation: reveal-scale-in 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.reveal-splash-ban .reveal-art-container {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  border-radius: 16px;
+  overflow: hidden;
+  filter: grayscale(80%) brightness(60%);
+  border: 2px solid rgba(220, 38, 38, 0.5);
+  box-shadow:
+    0 0 40px rgba(220, 38, 38, 0.3),
+    0 0 80px rgba(220, 38, 38, 0.15);
+}
+
+/* Red X slash */
+.reveal-ban-x {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+}
+
+.reveal-ban-x::before,
+.reveal-ban-x::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 6px;
+  height: 0;
+  background: linear-gradient(
+    180deg,
+    rgba(220, 38, 38, 0.9) 0%,
+    rgba(239, 68, 68, 1) 50%,
+    rgba(220, 38, 38, 0.9) 100%
+  );
+  border-radius: 4px;
+  box-shadow:
+    0 0 12px rgba(239, 68, 68, 0.8),
+    0 0 30px rgba(239, 68, 68, 0.4);
+}
+
+.reveal-ban-x::before {
+  transform: translate(-50%, -50%) rotate(45deg);
+  animation: reveal-x-slash 0.3s 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.reveal-ban-x::after {
+  transform: translate(-50%, -50%) rotate(-45deg);
+  animation: reveal-x-slash 0.3s 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* BANNED text */
+.reveal-ban-text {
+  margin-top: 24px;
+  font-size: 4rem;
+  font-weight: 900;
+  color: #ef4444;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  text-shadow:
+    0 0 20px rgba(239, 68, 68, 0.8),
+    0 0 60px rgba(239, 68, 68, 0.4),
+    0 2px 4px rgba(0, 0, 0, 0.5);
+  animation: reveal-ban-text-in 0.3s 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* ── Ban fade out ── */
+.reveal-overlay--ban-exiting {
+  animation: reveal-fade-out 0.3s ease-in forwards;
+  pointer-events: none;
+}
+
+/* ═══════════════════════════════════════════════
+   KEYFRAMES
+   ═══════════════════════════════════════════════ */
+
+@keyframes reveal-backdrop-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes reveal-scale-in {
+  from {
+    transform: scale(1.3);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes reveal-fade-out {
+  from {
+    opacity: 1;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.92);
+  }
+}
+
+@keyframes reveal-name-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes reveal-glow-pulse-blue {
+  0%, 100% {
+    box-shadow:
+      0 0 60px rgba(34, 211, 238, 0.5),
+      0 0 120px rgba(34, 211, 238, 0.25);
+    border-color: rgba(34, 211, 238, 0.6);
+  }
+  50% {
+    box-shadow:
+      0 0 80px rgba(34, 211, 238, 0.7),
+      0 0 160px rgba(34, 211, 238, 0.35);
+    border-color: rgba(34, 211, 238, 0.9);
+  }
+}
+
+@keyframes reveal-glow-pulse-red {
+  0%, 100% {
+    box-shadow:
+      0 0 60px rgba(251, 113, 133, 0.5),
+      0 0 120px rgba(251, 113, 133, 0.25);
+    border-color: rgba(251, 113, 133, 0.6);
+  }
+  50% {
+    box-shadow:
+      0 0 80px rgba(251, 113, 133, 0.7),
+      0 0 160px rgba(251, 113, 133, 0.35);
+    border-color: rgba(251, 113, 133, 0.9);
+  }
+}
+
+@keyframes reveal-x-slash {
+  from {
+    height: 0;
+  }
+  to {
+    height: 141%; /* Diagonal of a square = sqrt(2) ≈ 141% */
+  }
+}
+
+@keyframes reveal-ban-text-in {
+  0% {
+    opacity: 0;
+    transform: scale(1.4);
+    letter-spacing: 0.6em;
+  }
+  60% {
+    opacity: 1;
+    transform: scale(0.95);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+    letter-spacing: 0.3em;
+  }
+}

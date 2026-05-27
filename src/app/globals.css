@@ -1,0 +1,17 @@
+@import "tailwindcss";
+@import "../styles/tokens.css";
+@import "../styles/base.css";
+@import "../styles/backgrounds.css";
+@import "../styles/glass.css";
+@import "../styles/buttons.css";
+@import "../styles/forms.css";
+@import "../styles/animations.css";
+@import "../styles/draft.css";
+@import "../styles/pre-draft.css";
+@import "../styles/preview.css";
+@import "../styles/home.css";
+@import "../styles/reveal.css";
+@import "../styles/undo.css";
+@import "../styles/team-comp.css";
+@import "../styles/reaction.css";
+@import "../styles/tournament.css";

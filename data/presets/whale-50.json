@@ -1,0 +1,15 @@
+{
+  "id": "whale-50",
+  "name": "Whale 50★",
+  "description": "Chế độ Whale: mọi thứ cho phép, 50 điểm/đội",
+  "costPerPoint": 14,
+  "constraints": {
+    "maxConstellation": 6,
+    "maxWeaponRefinement": 5,
+    "weaponRarityLimit": 5,
+    "forceF2PWeapon": false,
+    "bannedCharacterIds": [],
+    "bannedWeaponIds": [],
+    "customLabel": "Whale 50★"
+  }
+}

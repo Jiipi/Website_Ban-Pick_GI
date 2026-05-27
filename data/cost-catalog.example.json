@@ -1,0 +1,37 @@
+{
+  "version": 1,
+  "updatedAt": "2026-05-26T00:00:00.000Z",
+  "defaults": {
+    "character": {
+      "rarity4Base": 0,
+      "rarity5Base": 1,
+      "constellationCost": 1
+    },
+    "weapon": {
+      "rarity4": 0,
+      "rarity5": 1
+    }
+  },
+  "characters": {
+    "albedo": {
+      "name": "Albedo",
+      "rarity": 5,
+      "baseCost": 1,
+      "constellationCost": 1
+    }
+  },
+  "weapons": {
+    "staff-of-homa": {
+      "name": "Staff of Homa",
+      "type": "Polearm",
+      "rarity": 5,
+      "cost": 1
+    },
+    "everlasting-moonglow": {
+      "name": "Everlasting Moonglow",
+      "type": "Catalyst",
+      "rarity": 5,
+      "cost": 0.5
+    }
+  }
+}

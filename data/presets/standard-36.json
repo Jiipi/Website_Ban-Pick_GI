@@ -1,0 +1,15 @@
+{
+  "id": "standard-36",
+  "name": "Standard 36★",
+  "description": "Luật chuẩn giải đấu: C6R5, tổng 36 điểm/đội",
+  "costPerPoint": 10,
+  "constraints": {
+    "maxConstellation": 6,
+    "maxWeaponRefinement": 5,
+    "weaponRarityLimit": 5,
+    "forceF2PWeapon": false,
+    "bannedCharacterIds": [],
+    "bannedWeaponIds": [],
+    "customLabel": "Standard 36★"
+  }
+}

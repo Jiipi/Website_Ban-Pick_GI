@@ -1,0 +1,132 @@
+/* ═══════════════════════════════════
+   TEAM COMP — Analysis panel styles
+   ═══════════════════════════════════ */
+
+.team-comp-panel {
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: rgba(15, 23, 42, 0.55);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(148, 163, 184, 0.1);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 6px;
+  animation: comp-fade-in 0.3s ease both;
+}
+
+.comp-panel-blue {
+  border-color: rgba(56, 189, 248, 0.15);
+}
+
+.comp-panel-red {
+  border-color: rgba(251, 113, 133, 0.15);
+}
+
+@keyframes comp-fade-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Element bubbles */
+.comp-elements {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.comp-element-bubble {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px 6px;
+  border-radius: 6px;
+  border: 1px solid;
+  font-size: 0.65rem;
+  font-weight: 800;
+}
+
+.comp-element-icon {
+  width: 13px;
+  height: 13px;
+  object-fit: contain;
+}
+
+.comp-element-count {
+  font-size: 0.62rem;
+  font-weight: 900;
+}
+
+/* Role tags */
+.comp-roles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.comp-role-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 1px 5px;
+  border-radius: 5px;
+  background: rgba(148, 163, 184, 0.1);
+  border: 1px solid rgba(148, 163, 184, 0.12);
+  color: #94a3b8;
+  font-size: 0.58rem;
+  font-weight: 700;
+}
+
+/* Warnings */
+.comp-warnings {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.comp-warning {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 7px;
+  border-radius: 6px;
+  font-size: 0.6rem;
+  font-weight: 700;
+  border: 1px solid;
+  animation: comp-warn-pulse 0.4s ease both;
+}
+
+.comp-warning-icon {
+  font-size: 0.68rem;
+  flex-shrink: 0;
+}
+
+.comp-warning-text {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+@keyframes comp-warn-pulse {
+  from { opacity: 0; transform: translateX(-4px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+.comp-warn-error {
+  background: rgba(239, 68, 68, 0.1);
+  border-color: rgba(239, 68, 68, 0.25);
+  color: #fca5a5;
+}
+
+.comp-warn-warning {
+  background: rgba(251, 191, 36, 0.08);
+  border-color: rgba(251, 191, 36, 0.2);
+  color: #fcd34d;
+}
+
+.comp-warn-info {
+  background: rgba(56, 189, 248, 0.08);
+  border-color: rgba(56, 189, 248, 0.15);
+  color: #7dd3fc;
+}

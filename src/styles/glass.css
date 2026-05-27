@@ -1,0 +1,42 @@
+/* ═══════════════════════════════════════════════
+   GLASS — Glassmorphism panels
+   ═══════════════════════════════════════════════ */
+
+@layer components {
+  .glass {
+    background: var(--glass-bg);
+    backdrop-filter: blur(var(--glass-blur));
+    -webkit-backdrop-filter: blur(var(--glass-blur));
+    border: 1px solid rgba(148, 163, 184, 0.18);
+    border-radius: var(--radius-xl);
+  }
+
+  .glass-strong {
+    background: rgba(15, 23, 42, 0.78);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border: 1px solid rgba(148, 163, 184, 0.22);
+    border-radius: var(--radius-2xl);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  }
+}
+
+/* ── Glow utilities ── */
+.glow-cyan {
+  box-shadow: 0 0 20px var(--blue-glow), 0 0 60px rgba(56, 189, 248, 0.08);
+}
+.glow-rose {
+  box-shadow: 0 0 20px var(--red-glow), 0 0 60px rgba(251, 113, 133, 0.08);
+}
+.glow-gold {
+  box-shadow: 0 0 20px var(--gold-glow), 0 0 60px rgba(251, 191, 36, 0.08);
+}
+
+.border-glow-cyan {
+  border-color: var(--blue-border);
+  box-shadow: 0 0 25px var(--blue-glow), inset 0 0 25px rgba(8, 145, 178, 0.06);
+}
+.border-glow-rose {
+  border-color: var(--red-border);
+  box-shadow: 0 0 25px var(--red-glow), inset 0 0 25px rgba(225, 29, 72, 0.06);
+}
