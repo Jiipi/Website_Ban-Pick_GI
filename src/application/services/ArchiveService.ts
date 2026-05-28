@@ -1,7 +1,7 @@
 import type { BanPickRepository } from "@/application/ports/BanPickRepository";
 import type { CostCatalogRepository } from "@/application/ports/CostCatalogRepository";
 import { success } from "@/application/shared/ServiceResult";
-import { calculateBuildCost, getWeaponIdFromSnapshot } from "@/domain/cost/CostCatalog";
+import { calculateBuildCost, getWeaponIdFromSnapshot, getWeaponRefinementFromSnapshot } from "@/domain/cost/CostCatalog";
 
 export type ArchiveFilters = {
   query?: string;
@@ -53,6 +53,7 @@ export class ArchiveService {
               consLevel: build.consLevel,
               weaponId: getWeaponIdFromSnapshot(build.enkaSnapshot),
               weaponRarity: build.weaponRarity,
+              weaponRefinement: getWeaponRefinementFromSnapshot(build.enkaSnapshot),
             }).totalCost,
           0,
         );
@@ -65,6 +66,7 @@ export class ArchiveService {
               consLevel: build.consLevel,
               weaponId: getWeaponIdFromSnapshot(build.enkaSnapshot),
               weaponRarity: build.weaponRarity,
+              weaponRefinement: getWeaponRefinementFromSnapshot(build.enkaSnapshot),
             }).totalCost,
           0,
         );

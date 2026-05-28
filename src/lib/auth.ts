@@ -11,13 +11,18 @@ function generateClientId(): string {
   return `c_${Math.random().toString(36).slice(2)}_${Date.now().toString(36)}`;
 }
 
-// Sync clientId to httpOnly cookie so Server Components can read it
-function syncClientIdCookie(clientId: string): void {
-  fetch("/api/session/init", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ clientId }),
-  }).catch(() => {/* best-effort */});
+// Sync clientId to httpOnly cookie so Server Components can read it.
+// Callers that navigate immediately after creating a session should await this.
+export async function syncClientIdCookie(clientId: string): Promise<void> {
+  try {
+    await fetch("/api/session/init", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ clientId }),
+    });
+  } catch {
+    // best-effort
+  }
 }
 
 // Each tab is an independent session (sessionStorage is per-tab).
@@ -33,14 +38,14 @@ export function getOrCreateClientId(): string {
   if (existing) {
     if (!cookieSynced) {
       cookieSynced = true;
-      syncClientIdCookie(existing);
+      void syncClientIdCookie(existing);
     }
     return existing;
   }
   const fresh = generateClientId();
   s.setItem(SESSION_KEYS.clientId, fresh);
   cookieSynced = true;
-  syncClientIdCookie(fresh);
+  void syncClientIdCookie(fresh);
   return fresh;
 }
 

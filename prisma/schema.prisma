@@ -152,6 +152,12 @@ model Tournament {
   maxTeams     Int      @default(8)              // 4 | 8 | 16 | 32
   startDate    DateTime?
   endDate      DateTime?
+  costCap      Int      @default(36)
+  bankTime     Int      @default(120)
+  fearlessDraft Boolean @default(false)
+  patch        String?
+  region       String?
+  rulesText    String?
   organizerId  String?                           // User.id of creator
   organizerName String?                          // Display name snapshot
   bannerUrl    String?
@@ -175,12 +181,32 @@ model TournamentParticipant {
   playerUid     String
   playerNickname String
   playerAvatarUrl String?
+  teamName      String?
+  logoUrl       String?
+  captainUid    String?
   seed          Int?
   eliminated    Boolean    @default(false)
   joinedAt      DateTime   @default(now())
+  members       TournamentTeamMember[]
 
   @@unique([tournamentId, playerUid])
   @@index([tournamentId, seed])
+  @@index([captainUid])
+}
+
+model TournamentTeamMember {
+  id             String                @id @default(cuid())
+  participantId  String
+  participant    TournamentParticipant @relation(fields: [participantId], references: [id], onDelete: Cascade)
+  uid            String
+  nickname       String
+  avatarUrl      String?
+  arLevel        Int?
+  role           String                @default("PLAYER") // CAPTAIN | PLAYER
+  joinedAt       DateTime              @default(now())
+
+  @@unique([participantId, uid])
+  @@index([uid])
 }
 
 model TournamentMatch {

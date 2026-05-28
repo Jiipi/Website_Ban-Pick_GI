@@ -21,11 +21,10 @@ import {
 } from "./draft/DraftContext";
 import { PICKS_PER_TEAM, TURN_DURATION_SECONDS } from "@/lib/constants";
 import {
-  draftTurns,
-  getCurrentTurn,
   isCharacterUnavailable,
   type DraftEntry,
 } from "@/lib/draft";
+import { draftPolicy } from "@/domain/draft/DraftPolicy";
 import type { GenshinCharacter } from "@/lib/genshin";
 import { getOrCreateClientId, getSession } from "@/lib/auth";
 import { canActOnTurn, getOwnedTeam, isHost } from "@/lib/permissions";
@@ -58,14 +57,24 @@ type DraftBoardProps = {
   redAvatarUrl: string | null;
   buildCount: number;
   updatedAt: string;
+  lastTurnStartedAt: string | null;
+  draftTemplate: unknown;
 };
-
-const TOTAL_TURNS = draftTurns.length;
 
 function formatBankTime(seconds: number): string {
   const m = Math.floor(seconds / 60);
   const s = seconds % 60;
   return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+}
+
+function latestTimestampIso(first?: string | Date | null, second?: string | Date | null): string | null {
+  const firstMs = first ? new Date(first).getTime() : Number.NaN;
+  const secondMs = second ? new Date(second).getTime() : Number.NaN;
+
+  if (!Number.isFinite(firstMs) && !Number.isFinite(secondMs)) return null;
+  if (!Number.isFinite(firstMs)) return new Date(secondMs).toISOString();
+  if (!Number.isFinite(secondMs)) return new Date(firstMs).toISOString();
+  return new Date(firstMs >= secondMs ? firstMs : secondMs).toISOString();
 }
 
 export function DraftBoard(props: DraftBoardProps) {
@@ -88,6 +97,8 @@ export function DraftBoard(props: DraftBoardProps) {
     redAvatarUrl,
     buildCount,
     updatedAt,
+    lastTurnStartedAt,
+    draftTemplate,
   } = props;
 
   const router = useRouter();
@@ -163,8 +174,13 @@ export function DraftBoard(props: DraftBoardProps) {
 
   // Merge realtime logs with optimistic local logs
   const allLogs = useMemo(() => [...liveLogs, ...optimisticLogs], [liveLogs, optimisticLogs]);
+  const draftTurnsForRoom = useMemo(
+    () => draftPolicy.resolveTurns(realtimeRoom?.draftTemplate ?? draftTemplate),
+    [realtimeRoom?.draftTemplate, draftTemplate],
+  );
+  const totalTurns = draftTurnsForRoom.length;
 
-  const currentTurn = getCurrentTurn(allLogs);
+  const currentTurn = draftPolicy.getCurrentTurn(allLogs, draftTurnsForRoom);
   const ownedTeam = getOwnedTeam(room, session);
   const userIsHost = isHost(room, session);
   const canAct = canActOnTurn(room, session, currentTurn);
@@ -203,14 +219,15 @@ export function DraftBoard(props: DraftBoardProps) {
     if (!currentTurn) return new Date().toISOString();
 
     const previousLogs = allLogs.filter((log) => log.turnNumber < currentTurn.turnNumber);
+    const latestPreviousLogAt = previousLogs.reduce<string | Date | null>(
+      (latest, log) => latestTimestampIso(latest, log.createdAt),
+      null,
+    );
+    const serverTurnStartedAt = realtimeRoom?.lastTurnStartedAt ?? lastTurnStartedAt;
+    const authoritativeStart = latestTimestampIso(serverTurnStartedAt, latestPreviousLogAt);
 
-    if (previousLogs.length === 0) {
-      return realtimeRoom?.updatedAt ?? updatedAt;
-    }
-
-    const lastPrevLog = previousLogs[previousLogs.length - 1];
-    return lastPrevLog.createdAt ?? new Date().toISOString();
-  }, [allLogs, currentTurn, realtimeRoom?.updatedAt, updatedAt]);
+    return authoritativeStart ?? realtimeRoom?.updatedAt ?? updatedAt;
+  }, [allLogs, currentTurn, realtimeRoom?.lastTurnStartedAt, realtimeRoom?.updatedAt, lastTurnStartedAt, updatedAt]);
 
   const blueTaken = Boolean(liveBlueClientId);
   const redTaken = Boolean(liveRedClientId);
@@ -221,7 +238,7 @@ export function DraftBoard(props: DraftBoardProps) {
   const picksRed = allLogs.filter((log) => log.action === "PICK" && log.player === "RED").slice(0, PICKS_PER_TEAM);
 
   const draftDone = !currentTurn;
-  const stepNumber = draftDone ? TOTAL_TURNS : currentTurn.turnNumber;
+  const stepNumber = draftDone ? totalTurns : currentTurn.turnNumber;
   const actionIcon = !draftDone ? (currentTurn.action === "BAN" ? "⛔" : "🎯") : "";
   const turnLabel = draftDone ? "DRAFT COMPLETE" : `${actionIcon} ${currentTurn.player} ${currentTurn.action}`;
   const activeTeam: TeamSide | null = !draftDone ? currentTurn.player : null;
@@ -346,7 +363,7 @@ export function DraftBoard(props: DraftBoardProps) {
     playConfirmSound();
     setLastConfirmedTurn(currentTurn.turnNumber);
 
-    if (currentTurn.turnNumber === TOTAL_TURNS) {
+    if (currentTurn.turnNumber === totalTurns) {
       router.refresh();
     }
 
@@ -391,10 +408,12 @@ export function DraftBoard(props: DraftBoardProps) {
     blue, red, session,
     currentTurn, logs: allLogs, characters, characterMap,
     ownedTeam, userIsHost, canAct,
-    draftDone, stepNumber, totalTurns: TOTAL_TURNS,
+    draftDone, stepNumber, totalTurns,
     activeTeam, activeAction,
     bansBlue, bansRed, picksBlue, picksRed,
     blueTaken, redTaken, buildCount: liveBuildCount,
+    seriesFormat: realtimeRoom?.seriesFormat ?? null,
+    fearlessDraft: realtimeRoom?.fearlessDraft ?? false,
   };
 
   const isWaiting = liveStatus === "WAITING";
@@ -456,7 +475,7 @@ export function DraftBoard(props: DraftBoardProps) {
 
           <div className={`draft-step-pill ${stepPillColor}`}>
             <span>
-              Step {stepNumber}/{TOTAL_TURNS}: {turnLabel}
+              Step {stepNumber}/{totalTurns}: {turnLabel}
             </span>
           </div>
 
@@ -493,6 +512,12 @@ export function DraftBoard(props: DraftBoardProps) {
               avatarUrl={liveBlueAvatarUrl}
               isActive={activeTeam === "BLUE"}
             />
+            <div className="draft-side-comp draft-side-comp-blue">
+              <TeamCompPanel
+                characterIds={picksBlue.map((e) => e.characterId).filter((id) => id !== "SKIPPED")}
+                team="BLUE"
+              />
+            </div>
           </div>
 
           <div className="draft-pick-side draft-pick-side-blue">
@@ -502,10 +527,6 @@ export function DraftBoard(props: DraftBoardProps) {
               characterMap={characterMap}
               isActive={activeTeam === "BLUE" && activeAction === "PICK"}
               previewCharacterIds={previewForPicksBlue}
-            />
-            <TeamCompPanel
-              characterIds={picksBlue.map((e) => e.characterId).filter((id) => id !== "SKIPPED")}
-              team="BLUE"
             />
           </div>
 
@@ -538,10 +559,6 @@ export function DraftBoard(props: DraftBoardProps) {
               isActive={activeTeam === "RED" && activeAction === "PICK"}
               previewCharacterIds={previewForPicksRed}
             />
-            <TeamCompPanel
-              characterIds={picksRed.map((e) => e.characterId).filter((id) => id !== "SKIPPED")}
-              team="RED"
-            />
           </div>
 
           <div className="draft-player-anchor draft-player-anchor-red">
@@ -553,6 +570,12 @@ export function DraftBoard(props: DraftBoardProps) {
               avatarUrl={liveRedAvatarUrl}
               isActive={activeTeam === "RED"}
             />
+            <div className="draft-side-comp draft-side-comp-red">
+              <TeamCompPanel
+                characterIds={picksRed.map((e) => e.characterId).filter((id) => id !== "SKIPPED")}
+                team="RED"
+              />
+            </div>
           </div>
         </section>
 

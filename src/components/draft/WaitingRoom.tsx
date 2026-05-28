@@ -1,30 +1,23 @@
 "use client";
 
-import { Clipboard, Check, MessageSquare } from "lucide-react";
-import { useState, useCallback } from "react";
+import { Check, Clipboard, MessageSquare } from "lucide-react";
+import { useCallback, useState } from "react";
 import { HostControls } from "@/components/HostControls";
 import { LiveChat } from "@/components/LiveChat";
 import { TeamInviteCard } from "./TeamInviteCard";
 import { RoleBadge } from "./RoleBadge";
 import { ReadyCheck } from "./ReadyCheck";
-import { CoinFlip } from "./CoinFlip";
-import { ConstraintsEditor } from "./ConstraintsEditor";
-import { PresetSelector } from "./PresetSelector";
-import { TemplateSelector } from "./TemplateSelector";
-import { SeriesSetup } from "./SeriesSetup";
-import { TeamBrandingEditor } from "./TeamBrandingEditor";
-import { BroadcastSettings } from "./BroadcastSettings";
-import { WebhookSettings } from "./WebhookSettings";
 import { playClickSound, playCopySound } from "@/lib/sounds";
 import { useDraft } from "./DraftContext";
 import { useDraftStore } from "@/stores/draftStore";
 import { broadcastReady } from "@/components/RealtimeRefresh";
 import type { Session } from "@/lib/types";
-import type { TournamentConstraints } from "@/domain/tournament/TournamentConstraints";
 
 type WaitingRoomProps = {
   session: Session | null;
 };
+
+const SERIES_FORMATS = ["BO1", "BO3", "BO5"] as const;
 
 export function WaitingRoom({ session }: WaitingRoomProps) {
   const {
@@ -38,14 +31,13 @@ export function WaitingRoom({ session }: WaitingRoomProps) {
     red,
     userIsHost,
     ownedTeam,
+    seriesFormat,
+    fearlessDraft,
   } = useDraft();
 
   const [copied, setCopied] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
-  const [showCoinFlip, setShowCoinFlip] = useState(false);
-  const [savedConstraints, setSavedConstraints] = useState<TournamentConstraints | null>(null);
 
-  // Ready state from store
   const blueReady = useDraftStore((s) => s.blueReady);
   const redReady = useDraftStore((s) => s.redReady);
   const setBlueReady = useDraftStore((s) => s.setBlueReady);
@@ -66,32 +58,21 @@ export function WaitingRoom({ session }: WaitingRoomProps) {
     const currentReady = ownedTeam === "BLUE" ? blueReady : redReady;
     const newReady = !currentReady;
 
-    // Update local store
     if (ownedTeam === "BLUE") {
       setBlueReady(newReady);
     } else {
       setRedReady(newReady);
     }
 
-    // Broadcast to other clients
     broadcastReady(roomCode, ownedTeam, newReady, session.clientId);
   }, [ownedTeam, session, blueReady, redReady, setBlueReady, setRedReady, roomCode]);
 
-  const handleCoinFlipComplete = useCallback(
-    (_winner: "BLUE" | "RED", _choice: "PICK_FIRST" | "DEFER") => {
-      // Close coin flip overlay
-      setShowCoinFlip(false);
-      // Future: use winner/choice to swap teams or set draft order
-    },
-    []
-  );
+  const playerCount = (blueTaken ? 1 : 0) + (redTaken ? 1 : 0);
 
   return (
     <div className="waiting-room">
-      {/* Animated diagonal split line */}
       <div className="wt-diagonal-split" aria-hidden="true" />
 
-      {/* Header */}
       <div className="waiting-header">
         <div className="waiting-header-left">
           <button className="draft-room-code" onClick={handleCopyCode} type="button">
@@ -109,146 +90,163 @@ export function WaitingRoom({ session }: WaitingRoomProps) {
         </div>
       </div>
 
-      {/* Arena content */}
-      <div className="wt-main">
-        {/* Teams row — Blue vs Red */}
-        <div className="wt-teams-row">
-          <TeamInviteCard
-            roomCode={roomCode}
-            clientId={session?.clientId ?? ""}
-            team="BLUE"
-            taken={blueTaken}
-            playerName={blue?.name ?? null}
-            playerNickname={blue?.nickname ?? null}
-            playerUid={blue?.uid ?? null}
-            playerAvatarUrl={blue?.avatarUrl ?? null}
-            isHost={userIsHost}
-          />
+      <div className="wt-dashboard">
+        <main className="wt-main">
+          <section className="wt-arena-card" aria-label="Match lobby">
+            <div className="wt-arena-head">
+              <span className="wt-arena-kicker">Match lobby</span>
+              <span className="wt-arena-count">{playerCount}/2 players</span>
+            </div>
 
-          <div className="wt-vs-divider">
-            <div className="wt-vs-ring" aria-hidden="true" />
-            <span className="wt-vs-text">VS</span>
-          </div>
+            <div className="wt-teams-row">
+              <TeamInviteCard
+                roomCode={roomCode}
+                clientId={session?.clientId ?? ""}
+                team="BLUE"
+                taken={blueTaken}
+                playerName={blue?.name ?? null}
+                playerNickname={blue?.nickname ?? null}
+                playerUid={blue?.uid ?? null}
+                playerAvatarUrl={blue?.avatarUrl ?? null}
+                isHost={userIsHost}
+              />
 
-          <TeamInviteCard
-            roomCode={roomCode}
-            clientId={session?.clientId ?? ""}
-            team="RED"
-            taken={redTaken}
-            playerName={red?.name ?? null}
-            playerNickname={red?.nickname ?? null}
-            playerUid={red?.uid ?? null}
-            playerAvatarUrl={red?.avatarUrl ?? null}
-            isHost={userIsHost}
-          />
-        </div>
+              <div className="wt-vs-divider">
+                <div className="wt-vs-ring" aria-hidden="true" />
+                <span className="wt-vs-text">VS</span>
+              </div>
 
-        {/* Ready check — shown when both teams have joined */}
-        {bothJoined && (
-          <ReadyCheck
-            roomCode={roomCode}
-            session={session}
-            ownedTeam={ownedTeam}
-            blueReady={blueReady}
-            redReady={redReady}
-            onReadyToggle={handleReadyToggle}
-          />
-        )}
+              <TeamInviteCard
+                roomCode={roomCode}
+                clientId={session?.clientId ?? ""}
+                team="RED"
+                taken={redTaken}
+                playerName={red?.name ?? null}
+                playerNickname={red?.nickname ?? null}
+                playerUid={red?.uid ?? null}
+                playerAvatarUrl={red?.avatarUrl ?? null}
+                isHost={userIsHost}
+              />
+            </div>
+
+            {bothJoined && (
+              <div className="wt-ready-wrap">
+                <ReadyCheck
+                  roomCode={roomCode}
+                  session={session}
+                  ownedTeam={ownedTeam}
+                  blueReady={blueReady}
+                  redReady={redReady}
+                  onReadyToggle={handleReadyToggle}
+                />
+              </div>
+            )}
+          </section>
+
+          {userIsHost && session ? (
+            <div className="wt-host-actions">
+              <CompactSeriesFormat
+                roomCode={roomCode}
+                clientId={session.clientId}
+                currentFormat={seriesFormat}
+                currentFearless={fearlessDraft}
+              />
+              <HostControls
+                roomCode={roomCode}
+                clientId={session.clientId}
+                status={status}
+                hasDraftLogs={logs.length > 0}
+                hasBuilds={buildCount > 0}
+                blueTaken={blueTaken}
+                redTaken={redTaken}
+                blueReady={blueReady}
+                redReady={redReady}
+              />
+              <div className="wt-chat-area">
+                <button
+                  onClick={() => {
+                    setChatOpen(!chatOpen);
+                    playClickSound();
+                  }}
+                  className="wt-chat-toggle"
+                  type="button"
+                >
+                  <MessageSquare size={14} />
+                  {chatOpen ? "Close chat" : "Chat"}
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="wt-player-msg">
+              <p>Waiting for the host to start when both players are ready.</p>
+            </div>
+          )}
+        </main>
       </div>
 
-      {/* Host bar — fixed bottom dock */}
-      {userIsHost && session && (
-        <div className="wt-host-bar">
-          <HostControls
-            roomCode={roomCode}
-            clientId={session.clientId}
-            status={status}
-            hasDraftLogs={logs.length > 0}
-            hasBuilds={buildCount > 0}
-            blueTaken={blueTaken}
-            redTaken={redTaken}
-            blueReady={blueReady}
-            redReady={redReady}
-          />
-          <PresetSelector
-            roomCode={roomCode}
-            clientId={session.clientId}
-            onApply={(preset) => setSavedConstraints(preset.constraints)}
-          />
-          <ConstraintsEditor
-            roomCode={roomCode}
-            clientId={session.clientId}
-            constraints={savedConstraints}
-            onSaved={setSavedConstraints}
-          />
-          <TemplateSelector
-            roomCode={roomCode}
-            clientId={session.clientId}
-          />
-          <SeriesSetup
-            roomCode={roomCode}
-            clientId={session.clientId}
-            currentFormat={null}
-            currentFearless={false}
-          />
-          <TeamBrandingEditor
-            roomCode={roomCode}
-            clientId={session.clientId}
-          />
-          <BroadcastSettings
-            roomCode={roomCode}
-            clientId={session.clientId}
-            currentDelay={0}
-            casterIds={[]}
-          />
-          <WebhookSettings
-            roomCode={roomCode}
-            clientId={session.clientId}
-          />
-          <div className="wt-chat-area">
-            {/* Coin Flip trigger — only when both teams joined */}
-            {bothJoined && (
-              <button
-                className="coin-flip-trigger"
-                onClick={() => { setShowCoinFlip(true); playClickSound(); }}
-                type="button"
-              >
-                🪙 Coin Flip
-              </button>
-            )}
-            <button
-              onClick={() => { setChatOpen(!chatOpen); playClickSound(); }}
-              className="wt-chat-toggle"
-              type="button"
-            >
-              <MessageSquare size={14} />
-              {chatOpen ? "Đóng" : "Chat"}
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Player waiting bar — non-host */}
-      {!userIsHost && (
-        <div className="wt-player-msg">
-          <p>⏳ Trọng tài sẽ bắt đầu trận đấu khi đủ 2 người chơi.</p>
-        </div>
-      )}
-
-      {/* Chat panel — floating above bar */}
       {chatOpen && session && (
         <div className="wt-chat-container">
           <LiveChat roomCode={roomCode} clientId={session.clientId} userName={session.name} />
         </div>
       )}
 
-      {/* Coin Flip overlay */}
-      {showCoinFlip && (
-        <CoinFlip
-          onComplete={handleCoinFlipComplete}
-          onCancel={() => setShowCoinFlip(false)}
-        />
-      )}
+    </div>
+  );
+}
+
+function CompactSeriesFormat({
+  roomCode,
+  clientId,
+  currentFormat,
+  currentFearless,
+}: {
+  roomCode: string;
+  clientId: string;
+  currentFormat: string | null;
+  currentFearless: boolean;
+}) {
+  const [saving, setSaving] = useState<string | null>(null);
+  const [optimisticFormat, setOptimisticFormat] = useState<string | null>(null);
+  const selectedFormat = optimisticFormat ?? currentFormat ?? "BO1";
+
+  async function setFormat(format: (typeof SERIES_FORMATS)[number]) {
+    if (saving || format === selectedFormat) return;
+    setSaving(format);
+    setOptimisticFormat(format);
+    playClickSound();
+
+    try {
+      await fetch(`/api/room/${roomCode}/host`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "SET_SERIES_FORMAT",
+          clientId,
+          format,
+          fearless: currentFearless,
+        }),
+      });
+    } finally {
+      setSaving(null);
+    }
+  }
+
+  return (
+    <div className="wt-format-compact" aria-label="Series format">
+      <span className="wt-format-label">Format</span>
+      <div className="wt-format-options">
+        {SERIES_FORMATS.map((format) => (
+          <button
+            key={format}
+            className={`wt-format-btn ${selectedFormat === format ? "is-active" : ""}`}
+            disabled={saving !== null}
+            onClick={() => setFormat(format)}
+            type="button"
+          >
+            {saving === format ? "..." : format.replace("BO", "Bo")}
+          </button>
+        ))}
+      </div>
     </div>
   );
 }

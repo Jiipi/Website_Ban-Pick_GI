@@ -41,6 +41,8 @@ export type DraftContextValue = {
   blueTaken: boolean;
   redTaken: boolean;
   buildCount: number;
+  seriesFormat: string | null;
+  fearlessDraft: boolean;
 };
 
 const DraftContext = createContext<DraftContextValue | null>(null);

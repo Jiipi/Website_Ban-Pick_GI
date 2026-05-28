@@ -11,7 +11,7 @@ export class TournamentService {
   constructor(private readonly repo: TournamentRepository) {}
 
   // ── List ──
-  async listTournaments(filter: { status?: string; limit?: number } = {}) {
+  async listTournaments(filter: { status?: string; format?: string; limit?: number } = {}) {
     const list = await this.repo.listTournaments(filter);
     return success({ tournaments: list });
   }
@@ -39,7 +39,24 @@ export class TournamentService {
   }
 
   // ── Add Participant ──
-  async addParticipant(tournamentId: string, playerUid: string, playerNickname: string, playerAvatarUrl: string | null) {
+  async addParticipant(
+    tournamentId: string,
+    playerUid: string,
+    playerNickname: string,
+    playerAvatarUrl: string | null,
+    options: {
+      teamName?: string | null;
+      logoUrl?: string | null;
+      captainUid?: string | null;
+      members?: Array<{
+        uid: string;
+        nickname: string;
+        avatarUrl: string | null;
+        arLevel: number | null;
+        role: "CAPTAIN" | "PLAYER";
+      }>;
+    } = {},
+  ) {
     const tournament = await this.repo.findTournamentById(tournamentId);
     if (!tournament) return failure(404, "Không tìm thấy giải đấu");
     if (tournament.status !== "UPCOMING") return failure(400, "Chỉ có thể đăng ký khi giải đấu chưa bắt đầu");
@@ -48,11 +65,24 @@ export class TournamentService {
     if (participants.length >= tournament.maxTeams) return failure(400, "Giải đấu đã đủ số đội");
     if (participants.some((p) => p.playerUid === playerUid)) return failure(409, "Người chơi đã đăng ký");
 
+    const requestedUids = new Set([playerUid, ...(options.members ?? []).map((member) => member.uid)]);
+    if (
+      [...requestedUids].some((uid) =>
+        participants.some((p) => p.playerUid === uid || p.captainUid === uid || p.members?.some((m) => m.uid === uid)),
+      )
+    ) {
+      return failure(409, "Mot UID trong doi da dang ky giai nay");
+    }
+
     const participant = await this.repo.addParticipant({
       tournamentId,
       playerUid,
       playerNickname,
       playerAvatarUrl,
+      teamName: options.teamName ?? playerNickname,
+      logoUrl: options.logoUrl ?? playerAvatarUrl,
+      captainUid: options.captainUid ?? playerUid,
+      members: options.members,
       seed: null,
     });
     return success({ participant });
@@ -170,19 +200,41 @@ export class TournamentService {
     round: number,
     matchNumber: number,
     winnerParticipantId: string,
-    allMatches: { id: string; round: number; matchNumber: number }[],
+    allMatches: { id: string; round: number; matchNumber: number; blueParticipantId?: string | null; redParticipantId?: string | null }[],
   ) {
-    const next = getNextMatchSlot(round, matchNumber);
-    const nextMatch = allMatches.find((m) => m.round === next.round && m.matchNumber === next.matchNumber);
-    if (!nextMatch) return; // This was the final
-
-    const update: UpdateMatchInput = { matchId: nextMatch.id };
-    if (next.slot === "blue") {
-      update.blueParticipantId = winnerParticipantId;
-    } else {
-      update.redParticipantId = winnerParticipantId;
+    // Single elimination: advance to round+1
+    if (round > 0) {
+      const next = getNextMatchSlot(round, matchNumber);
+      const nextMatch = allMatches.find((m) => m.round === next.round && m.matchNumber === next.matchNumber);
+      if (!nextMatch) return;
+      const update: UpdateMatchInput = { matchId: nextMatch.id };
+      if (next.slot === "blue") {
+        update.blueParticipantId = winnerParticipantId;
+      } else {
+        update.redParticipantId = winnerParticipantId;
+      }
+      await this.repo.updateMatch(update);
+      return;
     }
 
-    await this.repo.updateMatch(update);
+    // Losers bracket (negative rounds): advance to round-1 in losers bracket
+    // Losers from round -r go to round -(r+1) unless it's the grand final
+    if (round < 0) {
+      const nextLoserRound = round - 1; // move one round deeper in losers bracket
+      const nextLoserMatchIdx = Math.floor(matchNumber / 2);
+      const nextLoserMatch = allMatches.find(
+        (m) => m.round === nextLoserRound && m.matchNumber === nextLoserMatchIdx,
+      );
+      if (!nextLoserMatch) return;
+      // Winner of losers bracket round goes to loser bracket next match
+      const slot: "blue" | "red" = matchNumber % 2 === 0 ? "blue" : "red";
+      const update: UpdateMatchInput = { matchId: nextLoserMatch.id };
+      if (slot === "blue") {
+        update.blueParticipantId = winnerParticipantId;
+      } else {
+        update.redParticipantId = winnerParticipantId;
+      }
+      await this.repo.updateMatch(update);
+    }
   }
 }

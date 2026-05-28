@@ -79,6 +79,18 @@ export default async function TournamentDetailPage({ params }: PageProps) {
                 <InfoCell icon={<Trophy size={14} />} label="Organizer" value={tournament.organizerName ?? "—"} />
                 <InfoCell icon={<Award size={14} />} label="Giải thưởng" value={tournament.prizeInfo ?? "—"} />
               </div>
+              <div className="mt-3 grid gap-3 sm:grid-cols-4">
+                <InfoCell icon={<Trophy size={14} />} label="Cost cap" value={String(tournament.costCap)} />
+                <InfoCell icon={<Trophy size={14} />} label="Bank time" value={`${tournament.bankTime}s`} />
+                <InfoCell icon={<Trophy size={14} />} label="Fearless" value={tournament.fearlessDraft ? "On" : "Off"} />
+                <InfoCell icon={<Trophy size={14} />} label="Patch/Region" value={`${tournament.patch ?? "TBD"} / ${tournament.region ?? "All"}`} />
+              </div>
+              {tournament.rulesText && (
+                <div className="mt-4 rounded-2xl border border-slate-700/40 bg-slate-900/40 px-4 py-3">
+                  <p className="text-[9px] font-bold uppercase tracking-wider text-slate-500">Rules</p>
+                  <p className="mt-2 whitespace-pre-wrap text-xs leading-relaxed text-slate-300">{tournament.rulesText}</p>
+                </div>
+              )}
             </div>
           </div>
 

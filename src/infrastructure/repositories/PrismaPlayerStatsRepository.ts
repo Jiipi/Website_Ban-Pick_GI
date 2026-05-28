@@ -7,7 +7,7 @@ import type {
   PlayerStatsRepository,
 } from "@/application/ports/PlayerStatsRepository";
 import type { CostCatalogRepository } from "@/application/ports/CostCatalogRepository";
-import { calculateBuildCost, getWeaponIdFromSnapshot, type CostCatalog } from "@/domain/cost/CostCatalog";
+import { calculateBuildCost, getWeaponIdFromSnapshot, getWeaponRefinementFromSnapshot, type CostCatalog } from "@/domain/cost/CostCatalog";
 
 type PrismaLike = PrismaClient | Prisma.TransactionClient;
 
@@ -234,6 +234,7 @@ function sumCostFor(room: RoomWithBuildsLite, side: "BLUE" | "RED", costCatalog:
       consLevel: b.consLevel,
       weaponId: getWeaponIdFromSnapshot(b.enkaSnapshot),
       weaponRarity: b.weaponRarity,
+      weaponRefinement: getWeaponRefinementFromSnapshot(b.enkaSnapshot),
     }).totalCost, 0);
 }
 

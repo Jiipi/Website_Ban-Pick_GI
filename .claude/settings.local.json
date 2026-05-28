@@ -72,7 +72,23 @@
       "Bash(docker start *)",
       "Bash(python *)",
       "Bash(timeout 15 bash *)",
-      "Bash(timeout 30 bash -c 'until curl -s -o /dev/null -w \"%{http_code}\" http://localhost:8000/ | grep -q \"200\"; do sleep 2; done; echo ready')"
+      "Bash(timeout 30 bash -c 'until curl -s -o /dev/null -w \"%{http_code}\" http://localhost:8000/ | grep -q \"200\"; do sleep 2; done; echo ready')",
+      "Bash(PYTHONIOENCODING=utf-8 python *)",
+      "Bash(npx --yes tsc --noEmit -p tsconfig.json)",
+      "Bash(git diff *)",
+      "Bash(echo \"started pid=$!\")",
+      "Bash(awk 'BEGIN{c=0;w=0;mode=\\\\\"\\\\\"} /\\\\\"characters\\\\\":/{mode=\\\\\"c\\\\\"} /\\\\\"weapons\\\\\":/{mode=\\\\\"w\\\\\"} /\\\\\"name\\\\\":/{ if\\(mode==\\\\\"c\\\\\"\\)c++; else if\\(mode==\\\\\"w\\\\\"\\)w++ } END{print \\\\\"characters:\\\\\",c,\\\\\"weapons:\\\\\",w}' /tmp/cost-template.json)",
+      "Bash(where pandoc *)",
+      "Bash(where pdftotext *)",
+      "Bash(where python *)",
+      "Bash(where python3 *)",
+      "Bash(pdftotext -layout -f 1 -l 5 \"D:/Website_Ban_Pick_GI/2212375_BaoCaoTongKet_NewTech.pdf\" -)",
+      "Bash(pdftotext -layout -enc UTF-8 -f 1 -l 8 \"D:/Website_Ban_Pick_GI/2212375_BaoCaoTongKet_NewTech.pdf\" -)",
+      "Bash(pdftotext -layout -enc UTF-8 \"D:/Website_Ban_Pick_GI/2212375_BaoCaoTongKet_NewTech.pdf\" -)",
+      "Bash(pdftotext -layout \"/d/Website_Ban_Pick_GI/2212375_BaoCaoTongKet_NewTech.pdf\" -)",
+      "Bash(unzip -l BaoCaoToanVan_WebQLHoatDongRL.docx)",
+      "Bash(pdftotext *)",
+      "Bash(git add *)"
     ]
   }
 }

@@ -2,7 +2,8 @@
 
 import { useMemo, useState } from "react";
 import { Plus, Trash2, RotateCcw, Clock, ChevronUp, ChevronDown } from "lucide-react";
-import { calculateCharacterCost, calculateHandicap } from "@/lib/cost";
+import { calculateHandicap } from "@/lib/cost";
+import { calculateBuildCost, defaultCostCatalog, type CostCatalog } from "@/domain/cost/CostCatalog";
 import { DEFAULT_COST_PER_POINT, MIN_COST_PER_POINT, MAX_COST_PER_POINT } from "@/lib/constants";
 import { playClickSound, playConfirmSound } from "@/lib/sounds";
 
@@ -30,18 +31,28 @@ function initialTeam(): Slot[] {
   return Array.from({ length: PICKS_PER_TEAM }, () => makeSlot());
 }
 
-export function CostCalculatorClient() {
+function slotCost(slot: Slot, catalog: CostCatalog): number {
+  return calculateBuildCost(catalog, {
+    characterId: "",
+    characterRarity: slot.rarity,
+    consLevel: slot.consLevel,
+    weaponId: null,
+    weaponRarity: slot.weaponRarity,
+  }).totalCost;
+}
+
+export function CostCalculatorClient({ costCatalog = defaultCostCatalog }: { costCatalog?: CostCatalog } = {}) {
   const [blue, setBlue] = useState<Slot[]>(() => initialTeam());
   const [red, setRed] = useState<Slot[]>(() => initialTeam());
   const [costPerPoint, setCostPerPoint] = useState(DEFAULT_COST_PER_POINT);
 
   const blueCost = useMemo(
-    () => blue.reduce((sum, s) => sum + calculateCharacterCost(s.rarity, s.consLevel, s.weaponRarity), 0),
-    [blue],
+    () => blue.reduce((sum, s) => sum + slotCost(s, costCatalog), 0),
+    [blue, costCatalog],
   );
   const redCost = useMemo(
-    () => red.reduce((sum, s) => sum + calculateCharacterCost(s.rarity, s.consLevel, s.weaponRarity), 0),
-    [red],
+    () => red.reduce((sum, s) => sum + slotCost(s, costCatalog), 0),
+    [red, costCatalog],
   );
   const handicap = useMemo(() => calculateHandicap(blueCost, redCost, costPerPoint), [blueCost, redCost, costPerPoint]);
 
@@ -105,6 +116,7 @@ export function CostCalculatorClient() {
           team="BLUE"
           slots={blue}
           totalCost={blueCost}
+          costCatalog={costCatalog}
           onUpdate={(id, patch) => updateSlot("BLUE", id, patch)}
           onAdd={() => addSlot("BLUE")}
           onRemove={(id) => removeSlot("BLUE", id)}
@@ -113,6 +125,7 @@ export function CostCalculatorClient() {
           team="RED"
           slots={red}
           totalCost={redCost}
+          costCatalog={costCatalog}
           onUpdate={(id, patch) => updateSlot("RED", id, patch)}
           onAdd={() => addSlot("RED")}
           onRemove={(id) => removeSlot("RED", id)}
@@ -166,6 +179,7 @@ function TeamPanel({
   team,
   slots,
   totalCost,
+  costCatalog,
   onUpdate,
   onAdd,
   onRemove,
@@ -173,6 +187,7 @@ function TeamPanel({
   team: TeamSide;
   slots: Slot[];
   totalCost: number;
+  costCatalog: CostCatalog;
   onUpdate: (id: string, patch: Partial<Slot>) => void;
   onAdd: () => void;
   onRemove: (id: string) => void;
@@ -203,6 +218,7 @@ function TeamPanel({
             index={idx + 1}
             slot={slot}
             accent={accent}
+            costCatalog={costCatalog}
             onUpdate={(patch) => onUpdate(slot.id, patch)}
             onRemove={() => onRemove(slot.id)}
             canRemove={slots.length > 1}
@@ -222,6 +238,7 @@ function SlotRow({
   index,
   slot,
   accent,
+  costCatalog,
   onUpdate,
   onRemove,
   canRemove,
@@ -229,11 +246,12 @@ function SlotRow({
   index: number;
   slot: Slot;
   accent: "cyan" | "rose";
+  costCatalog: CostCatalog;
   onUpdate: (patch: Partial<Slot>) => void;
   onRemove: () => void;
   canRemove: boolean;
 }) {
-  const cost = calculateCharacterCost(slot.rarity, slot.consLevel, slot.weaponRarity);
+  const cost = slotCost(slot, costCatalog);
   const accentText = accent === "cyan" ? "text-cyan-300" : "text-rose-300";
 
   return (

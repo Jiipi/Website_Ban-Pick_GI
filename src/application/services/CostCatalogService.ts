@@ -1,4 +1,4 @@
-import type { BanPickRepository } from "@/application/ports/BanPickRepository";
+import type { BanPickRepository, RoomRecord, UserRecord } from "@/application/ports/BanPickRepository";
 import type { CharacterGateway } from "@/application/ports/CharacterGateway";
 import type { CostCatalogRepository } from "@/application/ports/CostCatalogRepository";
 import type { WeaponGateway } from "@/application/ports/WeaponGateway";
@@ -33,29 +33,40 @@ export class CostCatalogService {
     });
   }
 
-  async importCatalog(payload: Record<string, unknown>) {
+  async importCatalog(payload: Record<string, unknown>, user: UserRecord) {
     const clientIdResult = requireClientId(payload);
     if (!clientIdResult.ok) return clientIdResult;
 
-    const roomCode = String(payload.roomCode ?? "").trim().toUpperCase();
-    if (!roomCode) {
-      return failure(400, "Thiếu mã phòng để xác thực trọng tài");
-    }
+    const isAdmin = user.role === "ADMIN";
+    let room: RoomRecord | null = null;
 
-    const room = await this.repository.findRoomByCode(roomCode);
-    if (!room) {
-      return failure(404, "Room not found");
-    }
+    if (!isAdmin) {
+      const roomCode = String(payload.roomCode ?? "").trim().toUpperCase();
+      room = roomCode
+        ? await this.repository.findRoomByCode(roomCode)
+        : await this.repository.findWaitingRoomByHost(user.id, clientIdResult.data);
 
-    if (!room.hostClientId || room.hostClientId !== clientIdResult.data) {
-      return failure(403, "Chỉ trọng tài mới được nhập file cost");
+      if (!room) {
+        return failure(403, "Only admin or a WAITING room host can update the system cost catalog");
+      }
+
+      const isRoomReferee = Boolean(
+        room.hostUserId === user.id &&
+        room.hostClientId === clientIdResult.data,
+      );
+
+      if (!isRoomReferee || room.status !== "WAITING") {
+        return failure(403, "Cost catalog can only be updated before the draft starts");
+      }
     }
 
     const catalogPayload = payload.catalog ?? payload;
     const catalog = normalizeCostCatalog(catalogPayload);
     const saved = await this.costCatalogRepository.write(catalog);
 
-    await this.repository.updateRoom(room.id, { status: room.status });
+    if (room) {
+      await this.repository.updateRoom(room.id, { status: room.status });
+    }
 
     return success({
       catalog: saved,

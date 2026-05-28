@@ -3,6 +3,7 @@ import { Inter } from "next/font/google";
 import { cookies } from "next/headers";
 import { CommandPalette } from "@/components/CommandPalette";
 import { I18nWrapper } from "@/components/I18nWrapper";
+import { GlobalChrome } from "@/components/shell/GlobalChrome";
 import { getLocaleFromCookie } from "@/i18n";
 import "./globals.css";
 
@@ -29,7 +30,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
       <body className={inter.className}>
         <div className="bg-arena" aria-hidden="true" />
         <I18nWrapper locale={locale}>
-          {children}
+          <GlobalChrome>{children}</GlobalChrome>
         </I18nWrapper>
         <CommandPalette />
       </body>

@@ -9,6 +9,9 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  const auth = await services.auth.requireUser();
+  if (!auth.ok) return jsonResult(auth);
+
   const body = await request.json().catch(() => ({}));
-  return jsonResult(await services.costCatalog.importCatalog(body));
+  return jsonResult(await services.costCatalog.importCatalog(body, auth.data));
 }

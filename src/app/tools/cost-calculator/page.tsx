@@ -2,6 +2,8 @@ import Link from "next/link";
 import { ArrowLeft, Calculator } from "lucide-react";
 import { NavBar } from "@/components/NavBar";
 import { CostCalculatorClient } from "@/components/tools/CostCalculatorClient";
+import { services } from "@/composition/services";
+import { defaultCostCatalog } from "@/domain/cost/CostCatalog";
 
 export const metadata = {
   title: "Cost Calculator — Genshin Ban/Pick",
@@ -10,7 +12,10 @@ export const metadata = {
 
 export const dynamic = "force-dynamic";
 
-export default function CostCalculatorPage() {
+export default async function CostCalculatorPage() {
+  const catalogResult = await services.costCatalog.getCatalog();
+  const costCatalog = catalogResult.ok ? catalogResult.data.catalog : defaultCostCatalog;
+
   return (
     <>
       <NavBar />
@@ -39,7 +44,7 @@ export default function CostCalculatorPage() {
             </p>
           </div>
 
-          <CostCalculatorClient />
+          <CostCalculatorClient costCatalog={costCatalog} />
         </div>
       </main>
     </>

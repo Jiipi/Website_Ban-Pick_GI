@@ -1,9 +1,9 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Download, Search, Save, SlidersHorizontal, Trophy, Upload, X } from "lucide-react";
+import { Save, Search, Trophy, X } from "lucide-react";
 import { BanRow } from "@/components/draft/BanRow";
 import { PickGrid } from "@/components/PickGrid";
 import { getSession } from "@/lib/auth";
@@ -19,7 +19,7 @@ import { canEditBuild } from "@/lib/permissions";
 import { playClickSound, playConfirmSound, playErrorSound } from "@/lib/sounds";
 import type { Session, TeamSide } from "@/lib/types";
 import { useDraftStore } from "@/stores/draftStore";
-import { broadcastRoomUpdate } from "@/components/RealtimeRefresh";
+import { broadcastRoomUpdate, broadcastBuildSaved, broadcastBuildPreview } from "@/components/RealtimeRefresh";
 
 type NamedPick = { characterId: string; name: string };
 type ExistingBuild = {
@@ -28,6 +28,7 @@ type ExistingBuild = {
   rarity: number;
   consLevel: number;
   weaponRarity: number;
+  weaponRefinement?: number | null;
   weaponId?: string | null;
   weaponName?: string | null;
   weaponIconUrl?: string | null;
@@ -40,6 +41,7 @@ type BuildValue = {
   rarity: number;
   consLevel: number;
   weaponRarity: number;
+  weaponRefinement: number;
   weaponId: string | null;
   weaponName: string | null;
   weaponIconUrl: string | null;
@@ -55,6 +57,12 @@ type TeamSummary = {
   consCost: number;
   weaponCost: number;
   submitted: number;
+};
+
+type TimeAdjustment = {
+  mode: "FASTER" | "SLOWER" | "EVEN";
+  seconds: number;
+  label: string;
 };
 
 type WeaponPickerTarget = {
@@ -132,23 +140,23 @@ export function InlineBuildBoard(props: InlineBuildBoardProps) {
   const router = useRouter();
   const characterMap = useMemo(() => new Map(characters.map((character) => [character.id, character])), [characters]);
   const realtimeBuilds = useDraftStore((state) => state.realtimeBuilds);
+  const realtimeStatus = useDraftStore((state) => state.realtimeStatus);
+  const mergeBuildEntry = useDraftStore((state) => state.mergeBuildEntry);
   const realtimeCostCatalog = useDraftStore((state) => state.realtimeCostCatalog);
   const fetchRoomData = useDraftStore((state) => state.fetchRoomData);
   const activeCostCatalog = realtimeCostCatalog ?? costCatalog ?? defaultCostCatalog;
   const activeBuilds = realtimeBuilds ?? existingBuilds;
+  const liveStatus = realtimeStatus ?? status;
   const [session, setSession] = useState<Session | null>(null);
+  const [finishBusy, setFinishBusy] = useState(false);
   const [values, setValues] = useState<Record<TeamSide, Record<string, BuildValue>>>(() => ({
     BLUE: seedBuildValues("BLUE", bluePicks, existingBuilds, characterMap, weapons, activeCostCatalog),
     RED: seedBuildValues("RED", redPicks, existingBuilds, characterMap, weapons, activeCostCatalog),
   }));
   const [dirtyTeams, setDirtyTeams] = useState<Record<TeamSide, boolean>>({ BLUE: false, RED: false });
   const [savingTeam, setSavingTeam] = useState<TeamSide | null>(null);
-  const [importingCatalog, setImportingCatalog] = useState(false);
-  const [savingCostCatalog, setSavingCostCatalog] = useState(false);
   const [error, setError] = useState("");
   const [weaponPickerTarget, setWeaponPickerTarget] = useState<WeaponPickerTarget>(null);
-  const [costEditorOpen, setCostEditorOpen] = useState(false);
-  const costFileInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -161,6 +169,12 @@ export function InlineBuildBoard(props: InlineBuildBoardProps) {
       cancelled = true;
     };
   }, [roomCode]);
+
+  useEffect(() => {
+    if (liveStatus === "FINISHED") {
+      router.push(`/room/${roomCode}/result`);
+    }
+  }, [liveStatus, roomCode, router]);
 
   useEffect(() => {
     let cancelled = false;
@@ -177,8 +191,8 @@ export function InlineBuildBoard(props: InlineBuildBoardProps) {
   }, [activeBuilds, activeCostCatalog, bluePicks, redPicks, characterMap, weapons, dirtyTeams.BLUE, dirtyTeams.RED]);
 
   const room = useMemo(
-    () => ({ hostClientId, blueClientId, redClientId, status }),
-    [hostClientId, blueClientId, redClientId, status],
+    () => ({ hostClientId, blueClientId, redClientId, status: liveStatus }),
+    [hostClientId, blueClientId, redClientId, liveStatus],
   );
 
   const bansBlue = useMemo(
@@ -217,17 +231,22 @@ export function InlineBuildBoard(props: InlineBuildBoardProps) {
     setValues((previous) => {
       const current = previous[team][characterId] ?? defaultBuild(characterId, characterMap, activeCostCatalog);
       const next = withCalculatedCost({ ...current, ...patch }, activeCostCatalog);
+      const nextTeamValues = {
+        ...previous[team],
+        [characterId]: next,
+      };
+      const picks = team === "BLUE" ? bluePicks : redPicks;
+      if (session) {
+        broadcastBuildPreview(roomCode, team, buildPreviewPayload(team, picks, nextTeamValues, characterMap, activeCostCatalog), session.clientId);
+      }
       return {
         ...previous,
-        [team]: {
-          ...previous[team],
-          [characterId]: next,
-        },
+        [team]: nextTeamValues,
       };
     });
   }
 
-  async function saveTeam(team: TeamSide, picks: NamedPick[]) {
+  async function saveTeam(team: TeamSide, picks: NamedPick[], options: { silent?: boolean } = {}) {
     if (!session || !canEditBuild(room, session, team)) return;
     setSavingTeam(team);
     setError("");
@@ -248,11 +267,63 @@ export function InlineBuildBoard(props: InlineBuildBoardProps) {
       return;
     }
 
-    playConfirmSound();
+    if (!options.silent) {
+      playConfirmSound();
+    }
+    if (Array.isArray(data.builds)) {
+      for (const build of data.builds) {
+        mergeBuildEntry(build);
+      }
+    }
     setDirtyTeams((previous) => ({ ...previous, [team]: false }));
-    await fetchRoomData?.();
     broadcastRoomUpdate(roomId);
-    router.refresh();
+    broadcastBuildSaved(roomCode, team, session.clientId);
+    if (liveStatus === "FINISHED") {
+      router.refresh();
+    }
+  }
+
+  useEffect(() => {
+    if (!session) return;
+
+    const timers: ReturnType<typeof setTimeout>[] = [];
+    const scheduleSave = (team: TeamSide, picks: NamedPick[]) => {
+      if (!dirtyTeams[team] || savingTeam === team || picks.length !== PICKS_PER_TEAM || !canEditBuild(room, session, team)) return;
+      timers.push(setTimeout(() => void saveTeam(team, picks, { silent: true }), 450));
+    };
+
+    scheduleSave("BLUE", bluePicks);
+    scheduleSave("RED", redPicks);
+
+    return () => {
+      for (const timer of timers) {
+        clearTimeout(timer);
+      }
+    };
+  }, [bluePicks, dirtyTeams, redPicks, room, savingTeam, session, values]);
+
+  async function finishMatch() {
+    if (!session || !viewerIsHost) return;
+    setFinishBusy(true);
+    setError("");
+    playClickSound();
+
+    const response = await fetch(`/api/room/${roomCode}/host`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ clientId: session.clientId, action: "FINISH_MATCH" }),
+    });
+
+    setFinishBusy(false);
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({}));
+      setError(data.message ?? "Không thể tổng kết");
+      playErrorSound();
+      return;
+    }
+
+    playConfirmSound();
+    router.push(`/room/${roomCode}/result`);
   }
 
   function selectWeapon(target: NonNullable<WeaponPickerTarget>, weapon: WeaponItem) {
@@ -262,6 +333,7 @@ export function InlineBuildBoard(props: InlineBuildBoardProps) {
       weaponIconUrl: weapon.iconUrl,
       weaponType: weapon.type,
       weaponRarity: weapon.rarity,
+      weaponRefinement: 1,
     });
     setWeaponPickerTarget(null);
   }
@@ -273,100 +345,22 @@ export function InlineBuildBoard(props: InlineBuildBoardProps) {
       weaponIconUrl: null,
       weaponType: null,
       weaponRarity: 4,
+      weaponRefinement: 1,
     });
     setWeaponPickerTarget(null);
   }
 
-  async function importCostCatalog(file: File | undefined) {
-    if (!file) return;
-
-    const clientId = session?.clientId ?? viewerClientId;
-    if (!clientId || !viewerIsHost) {
-      setError("Chỉ trọng tài mới được nhập file cost");
-      playErrorSound();
-      return;
-    }
-
-    setImportingCatalog(true);
-    setError("");
-
-    try {
-      const catalog = JSON.parse(await file.text());
-      const response = await fetch("/api/cost-catalog", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ roomCode, clientId, catalog }),
-      });
-      const data = await response.json().catch(() => ({}));
-
-      if (!response.ok) {
-        setError(data.message ?? "Không nhập được file cost");
-        playErrorSound();
-        return;
-      }
-
-      playConfirmSound();
-      await fetchRoomData?.();
-      broadcastRoomUpdate(roomId);
-      router.refresh();
-    } catch {
-      setError("File cost không đúng định dạng JSON");
-      playErrorSound();
-    } finally {
-      setImportingCatalog(false);
-      if (costFileInputRef.current) {
-        costFileInputRef.current.value = "";
-      }
-    }
-  }
-
-  async function saveCostCatalog(catalog: CostCatalog) {
-    const clientId = session?.clientId ?? viewerClientId;
-    if (!clientId || !viewerIsHost) {
-      setError("Chỉ trọng tài mới được sửa cost");
-      playErrorSound();
-      return;
-    }
-
-    setSavingCostCatalog(true);
-    setError("");
-
-    try {
-      const response = await fetch("/api/cost-catalog", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ roomCode, clientId, catalog }),
-      });
-      const data = await response.json().catch(() => ({}));
-
-      if (!response.ok) {
-        setError(data.message ?? "Không lưu được cost");
-        playErrorSound();
-        return;
-      }
-
-      playConfirmSound();
-      setCostEditorOpen(false);
-      await fetchRoomData?.();
-      broadcastRoomUpdate(roomId);
-      router.refresh();
-    } catch {
-      setError("Không lưu được cost");
-      playErrorSound();
-    } finally {
-      setSavingCostCatalog(false);
-    }
-  }
-
   const blueCanEdit = canEditBuild(room, session, "BLUE");
   const redCanEdit = canEditBuild(room, session, "RED");
-  const viewerIsHost = Boolean(viewerClientId && hostClientId === viewerClientId);
+  const effectiveViewerClientId = session?.clientId || viewerClientId;
+  const viewerIsHost = Boolean(effectiveViewerClientId && hostClientId === effectiveViewerClientId);
   const viewerTeam: TeamSide | null =
-    viewerClientId && blueClientId === viewerClientId
+    session?.team ??
+    (effectiveViewerClientId && blueClientId === effectiveViewerClientId
       ? "BLUE"
-      : viewerClientId && redClientId === viewerClientId
+      : effectiveViewerClientId && redClientId === effectiveViewerClientId
         ? "RED"
-        : null;
+        : null);
   const buildTeam = viewerIsHost ? null : viewerTeam;
   const playerBuild = buildTeam
     ? {
@@ -376,7 +370,7 @@ export function InlineBuildBoard(props: InlineBuildBoardProps) {
         picks: buildTeam === "BLUE" ? bluePicks : redPicks,
         values: buildTeam === "BLUE" ? values.BLUE : values.RED,
         canEdit: buildTeam === "BLUE" ? blueCanEdit : redCanEdit,
-        timeBonus: buildTeam === "BLUE" ? lead.blueBonusSeconds : lead.redBonusSeconds,
+        timeAdjustment: buildTeam === "BLUE" ? lead.blue : lead.red,
       }
     : null;
 
@@ -387,7 +381,7 @@ export function InlineBuildBoard(props: InlineBuildBoardProps) {
           <BanRow accent="blue" entries={bansBlue} characterMap={characterMap} activeIndex={-1} />
         </div>
         <div className="draft-step-pill">
-          <span>Hoàn tất draft</span>
+          <span>Giai đoạn khai báo build</span>
         </div>
         <div className="flex justify-start">
           <BanRow accent="red" entries={bansRed} characterMap={characterMap} activeIndex={-1} />
@@ -395,56 +389,19 @@ export function InlineBuildBoard(props: InlineBuildBoardProps) {
         <div className="absolute left-1 top-1 rounded-md border border-slate-500/30 bg-slate-950/60 px-3 py-2 text-xs font-black uppercase tracking-wide text-slate-100">
           {roomCode}
         </div>
-        <div className="absolute right-1 top-1 flex flex-wrap justify-end gap-2">
-          <button
-            className="inline-flex h-9 items-center gap-2 rounded-md border border-amber-400/45 bg-slate-950/82 px-3 text-xs font-black uppercase tracking-wide text-amber-100 shadow-[0_0_24px_rgba(251,191,36,0.12)] transition hover:bg-amber-500/15"
-            onClick={() => {
-              playClickSound();
-              setCostEditorOpen(true);
-            }}
-            type="button"
-          >
-            <SlidersHorizontal size={14} />
-            Sửa cost
-          </button>
-          {viewerIsHost && (
-            <>
-              <a
-                className="inline-flex h-9 items-center gap-2 rounded-md border border-cyan-400/35 bg-slate-950/70 px-3 text-xs font-black uppercase tracking-wide text-cyan-100 transition hover:bg-cyan-500/15"
-                href="/api/cost-catalog/template"
-                onClick={() => playClickSound()}
-              >
-                <Download size={14} />
-                Mẫu
-              </a>
-              <button
-                className="inline-flex h-9 items-center gap-2 rounded-md border border-emerald-400/35 bg-slate-950/70 px-3 text-xs font-black uppercase tracking-wide text-emerald-100 transition hover:bg-emerald-500/15 disabled:cursor-wait disabled:opacity-60"
-                disabled={importingCatalog}
-                onClick={() => {
-                  playClickSound();
-                  costFileInputRef.current?.click();
-                }}
-                type="button"
-              >
-                <Upload size={14} />
-                {importingCatalog ? "Đang nhập" : "Nhập"}
-              </button>
-            </>
-          )}
-        </div>
       </header>
 
       <section className="grid min-h-0 grid-cols-[minmax(120px,210px)_minmax(300px,470px)_minmax(130px,180px)_minmax(300px,470px)_minmax(120px,210px)] items-center justify-center gap-3">
         <PlayerPlate tone="blue" name={bluePlayerName} uid={blueUid} nickname={blueNickname} avatarUrl={blueAvatarUrl} />
         <PickGrid accent="blue" entries={pickEntriesBlue} characterMap={characterMap} isActive={false} />
-        <CenterLead lead={lead} />
+        <CenterLead lead={lead} costPerPoint={costPerPoint} />
         <PickGrid accent="red" entries={pickEntriesRed} characterMap={characterMap} isActive={false} />
         <PlayerPlate tone="red" name={redPlayerName} uid={redUid} nickname={redNickname} avatarUrl={redAvatarUrl} />
       </section>
 
       {playerBuild ? (
         <section className="mx-auto grid w-full max-w-[1180px] min-h-0 grid-cols-[minmax(220px,280px)_minmax(0,1fr)] gap-3">
-          <CostPanel tone={playerBuild.tone} summary={playerBuild.summary} timeBonus={playerBuild.timeBonus} />
+          <CostPanel tone={playerBuild.tone} summary={playerBuild.summary} timeAdjustment={playerBuild.timeAdjustment} />
           <TeamWeaponBoard
             team={playerBuild.team}
             picks={playerBuild.picks}
@@ -461,7 +418,7 @@ export function InlineBuildBoard(props: InlineBuildBoardProps) {
         </section>
       ) : (
         <section className="grid min-h-0 grid-cols-[minmax(220px,260px)_minmax(0,1fr)_minmax(0,1fr)_minmax(220px,260px)] gap-3">
-          <CostPanel tone="blue" summary={blueSummary} timeBonus={lead.blueBonusSeconds} />
+          <CostPanel tone="blue" summary={blueSummary} timeAdjustment={lead.blue} />
           <TeamWeaponBoard
             team="BLUE"
             picks={bluePicks}
@@ -488,7 +445,7 @@ export function InlineBuildBoard(props: InlineBuildBoardProps) {
             onOpenWeaponPicker={setWeaponPickerTarget}
             onSave={() => saveTeam("RED", redPicks)}
           />
-          <CostPanel tone="red" summary={redSummary} timeBonus={lead.redBonusSeconds} />
+          <CostPanel tone="red" summary={redSummary} timeAdjustment={lead.red} />
         </section>
       )}
 
@@ -517,63 +474,26 @@ export function InlineBuildBoard(props: InlineBuildBoardProps) {
               Đội Xanh {blueSummary.submitted}/{PICKS_PER_TEAM}
             </div>
             <div className="flex min-h-10 flex-wrap items-center justify-center gap-2 rounded-md border border-emerald-500/30 bg-emerald-950/30 px-3 py-2 text-xs font-black uppercase tracking-wide text-emerald-200">
-              <span>Bảng vũ khí tự động</span>
-              {viewerIsHost && (
-                <>
-                  <button
-                    className="inline-flex h-7 items-center gap-1 rounded border border-slate-500/45 bg-slate-900/70 px-2 text-[10px] text-slate-200 transition hover:border-amber-300 hover:text-amber-100"
-                    onClick={() => {
-                      playClickSound();
-                      setCostEditorOpen(true);
-                    }}
-                    type="button"
-                  >
-                    <SlidersHorizontal size={12} />
-                    Sửa cost
-                  </button>
-                  <a
-                    className="inline-flex h-7 items-center gap-1 rounded border border-slate-500/45 bg-slate-900/70 px-2 text-[10px] text-slate-200 transition hover:border-cyan-300 hover:text-cyan-100"
-                    href="/api/cost-catalog/template"
-                    onClick={() => playClickSound()}
-                  >
-                    <Download size={12} />
-                    Mẫu cost
-                  </a>
-                  <button
-                    className="inline-flex h-7 items-center gap-1 rounded border border-slate-500/45 bg-slate-900/70 px-2 text-[10px] text-slate-200 transition hover:border-emerald-300 hover:text-emerald-100 disabled:cursor-wait disabled:opacity-60"
-                    disabled={importingCatalog}
-                    onClick={() => {
-                      playClickSound();
-                      costFileInputRef.current?.click();
-                    }}
-                    type="button"
-                  >
-                    <Upload size={12} />
-                    {importingCatalog ? "Đang nhập" : "Nhập cost"}
-                  </button>
-                  <input
-                    ref={costFileInputRef}
-                    accept="application/json,.json"
-                    className="hidden"
-                    onChange={(event) => importCostCatalog(event.target.files?.[0])}
-                    type="file"
-                  />
-                </>
-              )}
+              <span>Hai đội có thể lưu build song song</span>
             </div>
           </>
         )}
-        <button
-          className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-slate-500/40 bg-slate-900/80 px-4 text-sm font-bold text-slate-100 transition hover:border-amber-400/60 hover:text-amber-200"
-          onClick={() => {
-            playClickSound();
-            router.push(`/room/${roomCode}/result`);
-          }}
-          type="button"
-        >
-          <Trophy size={16} />
-          Kết quả
-        </button>
+        {viewerIsHost ? (
+          <button
+            className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-amber-400/60 bg-amber-500/15 px-4 text-sm font-black uppercase tracking-wide text-amber-200 transition hover:bg-amber-500/25 disabled:cursor-wait disabled:opacity-60"
+            disabled={finishBusy}
+            onClick={finishMatch}
+            type="button"
+          >
+            <Trophy size={16} />
+            {finishBusy ? "Đang tổng kết..." : "Tổng kết"}
+          </button>
+        ) : (
+          <span className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-amber-400/40 bg-amber-500/10 px-4 text-xs font-black uppercase tracking-wide text-amber-200">
+            <Trophy size={14} />
+            Chờ trọng tài tổng kết
+          </span>
+        )}
         {!playerBuild && (
           <div className="rounded-md border border-rose-500/30 bg-rose-950/30 px-4 py-2 text-right text-xs font-black uppercase tracking-wide text-rose-200">
             Đội Đỏ {redSummary.submitted}/{PICKS_PER_TEAM}
@@ -588,16 +508,6 @@ export function InlineBuildBoard(props: InlineBuildBoardProps) {
           onClose={() => setWeaponPickerTarget(null)}
           onClear={() => clearWeapon(weaponPickerTarget)}
           onSelect={(weapon) => selectWeapon(weaponPickerTarget, weapon)}
-        />
-      )}
-      {costEditorOpen && (
-        <CostCatalogEditorModal
-          catalog={activeCostCatalog}
-          characters={characters}
-          weapons={weapons}
-          saving={savingCostCatalog}
-          onClose={() => setCostEditorOpen(false)}
-          onSave={saveCostCatalog}
         />
       )}
     </div>
@@ -799,37 +709,58 @@ function BuildWeaponSlot({
         </div>
       </div>
 
-      <button
-        className={`relative aspect-square w-full overflow-hidden rounded-md border bg-slate-950/45 transition ${
-          canEdit ? "hover:border-amber-300/70 hover:bg-slate-900/70" : "cursor-default opacity-75"
-        } ${panelBorder(tone)}`}
-        disabled={!canEdit}
-        onClick={() => {
-          playClickSound();
-          onOpenWeaponPicker({ team, characterId: pick.characterId, characterName: pick.name });
-        }}
-        title={weaponName}
-        type="button"
-      >
-        {weaponIconUrl ? (
-          <>
-            <Image src={weaponIconUrl} alt={weaponName} fill sizes="92px" className="object-contain p-2" unoptimized />
-            <span className={`absolute right-1 top-1 rounded bg-slate-950/85 px-1.5 py-0.5 text-[10px] font-black ${value.weaponRarity === 5 ? "text-amber-200" : "text-purple-200"}`}>
-              {value.weaponRarity}★
-            </span>
-            <span className="absolute inset-x-1 bottom-1 truncate rounded bg-slate-950/82 px-1 py-0.5 text-[9px] font-black text-slate-100">
-              {weaponName}
-            </span>
-            {weaponType && (
-              <span className="absolute left-1 top-1 rounded bg-slate-950/82 px-1.5 py-0.5 text-[8px] font-black uppercase text-slate-300">
-                {weaponType}
+      <div className={`relative overflow-hidden rounded-md border bg-slate-950/45 ${panelBorder(tone)}`}>
+        <button
+          className={`relative block aspect-square w-full bg-slate-950/45 transition ${
+            canEdit ? "hover:bg-slate-900/70" : "cursor-default opacity-75"
+          }`}
+          disabled={!canEdit}
+          onClick={() => {
+            playClickSound();
+            onOpenWeaponPicker({ team, characterId: pick.characterId, characterName: pick.name });
+          }}
+          title={weaponName}
+          type="button"
+        >
+          {weaponIconUrl ? (
+            <>
+              <Image src={weaponIconUrl} alt={weaponName} fill sizes="92px" className="object-contain p-2" unoptimized />
+              <span className={`absolute right-1 top-1 rounded bg-slate-950/85 px-1.5 py-0.5 text-[10px] font-black ${value.weaponRarity === 5 ? "text-amber-200" : "text-purple-200"}`}>
+                {value.weaponRarity}★
               </span>
-            )}
-          </>
+              {weaponType && (
+                <span className="absolute left-1 top-1 rounded bg-slate-950/82 px-1.5 py-0.5 text-[8px] font-black uppercase text-slate-300">
+                  {weaponType}
+                </span>
+              )}
+            </>
+          ) : (
+            <span className="flex h-full w-full items-center justify-center text-3xl font-light text-slate-300">+</span>
+          )}
+        </button>
+        {value.weaponId ? (
+          <div className="border-t border-slate-700/45 bg-slate-950/85 px-1 py-1">
+            <select
+              className="h-7 w-full rounded border border-slate-600/45 bg-slate-950/85 px-1.5 text-xs font-bold text-slate-100 outline-none focus:border-cyan-300 disabled:opacity-55"
+              disabled={!canEdit}
+              value={value.weaponRefinement}
+              onChange={(event) => {
+                playClickSound();
+                onChange(team, pick.characterId, { weaponRefinement: Number(event.target.value) });
+              }}
+            >
+              {[1, 2, 3, 4, 5].map((level) => (
+                <option key={level} value={level}>R{level}</option>
+              ))}
+            </select>
+            <p className="mt-1 truncate text-center text-[10px] font-black text-slate-100" title={weaponName}>{weaponName}</p>
+          </div>
         ) : (
-          <span className="flex h-full w-full items-center justify-center text-3xl font-light text-slate-300">+</span>
+          <p className="truncate border-t border-slate-700/45 bg-slate-950/85 px-1.5 py-1 text-center text-[10px] font-black text-slate-400">
+            Chọn vũ khí
+          </p>
         )}
-      </button>
+      </div>
     </div>
   );
 }
@@ -1257,12 +1188,16 @@ function CatalogNumberField({
 function CostPanel({
   tone,
   summary,
-  timeBonus,
+  timeAdjustment,
 }: {
   tone: "blue" | "red";
   summary: TeamSummary;
-  timeBonus: number;
+  timeAdjustment: TimeAdjustment;
 }) {
+  const timeTone = timeAdjustment.mode === "FASTER" ? "red" : timeAdjustment.mode === "SLOWER" ? "gold" : undefined;
+  const timeLabel = timeAdjustment.mode === "FASTER" ? "Phải nhanh hơn" : timeAdjustment.mode === "SLOWER" ? "Được chậm hơn" : "Cân bằng";
+  const timeValue = timeAdjustment.seconds === 0 ? "0s" : `${timeAdjustment.seconds.toFixed(0)}s`;
+
   return (
     <aside className={`self-start rounded-lg border bg-slate-950/48 p-4 ${panelBorder(tone)}`}>
       <h2 className={`text-sm font-black uppercase tracking-wide ${toneText(tone)}`}>
@@ -1275,7 +1210,7 @@ function CostPanel({
         <CostRow label="Vũ khí" value={formatCost(summary.weaponCost)} />
         <CostRow label="Cấp" value="0.00s" />
         <CostRow label="Cost đặc biệt" value="0" />
-        <CostRow label="Thưởng thời gian" value={`${timeBonus.toFixed(0)}s`} strong tone="gold" />
+        <CostRow label={timeLabel} value={timeValue} strong tone={timeTone} />
       </div>
     </aside>
   );
@@ -1342,16 +1277,34 @@ function Avatar({ avatarUrl, name }: { avatarUrl: string | null; name: string })
   );
 }
 
-function CenterLead({ lead }: { lead: ReturnType<typeof calculateLead> }) {
+function CenterLead({ lead, costPerPoint }: { lead: ReturnType<typeof calculateLead>; costPerPoint: number }) {
   return (
     <div className="flex flex-col items-center justify-center text-center">
-      <div className="rounded-full border border-cyan-300/55 bg-slate-950/55 px-5 py-4 shadow-[0_0_32px_rgba(34,211,238,0.16)]">
-        <p className="text-[10px] font-black uppercase tracking-wide text-slate-400">Lợi thế hiện tại</p>
-        <p className={`mt-1 text-xl font-black tabular-nums ${lead.tone === "red" ? "text-rose-300" : "text-cyan-300"}`}>
-          {lead.label}
+      <div className="rounded-2xl border border-cyan-300/45 bg-slate-950/58 px-5 py-4 shadow-[0_0_32px_rgba(34,211,238,0.16)]">
+        <p className="text-[10px] font-black uppercase tracking-wide text-slate-400">Điều chỉnh thời gian trực tiếp</p>
+        <div className="mt-3 grid gap-2 text-left text-xs font-black uppercase tracking-wide">
+          <TimeAdjustmentRow tone="blue" label="Đội Xanh" adjustment={lead.blue} />
+          <TimeAdjustmentRow tone="red" label="Đội Đỏ" adjustment={lead.red} />
+        </div>
+        <p className="mt-3 text-[10px] font-bold text-slate-500">
+          Công thức: chênh lệch cost × {costPerPoint}s/cost
         </p>
       </div>
-      <p className="mt-2 text-[11px] font-black uppercase tracking-wide text-slate-400">Hoàn tất</p>
+      <p className="mt-2 text-[11px] font-black uppercase tracking-wide text-slate-400">Cập nhật khi hai đội lưu build song song</p>
+    </div>
+  );
+}
+
+function TimeAdjustmentRow({ tone, label, adjustment }: { tone: "blue" | "red"; label: string; adjustment: TimeAdjustment }) {
+  const valueTone = adjustment.mode === "FASTER"
+    ? "text-rose-300"
+    : adjustment.mode === "SLOWER"
+      ? "text-amber-300"
+      : "text-slate-300";
+  return (
+    <div className="flex min-w-[190px] items-center justify-between gap-3 rounded-lg border border-slate-700/40 bg-slate-900/45 px-3 py-2">
+      <span className={toneText(tone)}>{label}</span>
+      <span className={valueTone}>{adjustment.label}</span>
     </div>
   );
 }
@@ -1383,6 +1336,7 @@ function seedBuildValues(
               rarity: existing.rarity,
               consLevel: existing.consLevel,
               weaponRarity: existing.weaponRarity,
+              weaponRefinement: snapshot?.weaponRefinement ?? 1,
               weaponId: snapshot?.weaponId ?? null,
               weaponName: snapshot?.weaponName ?? selectedWeapon?.name ?? null,
               weaponIconUrl: snapshot?.weaponIconUrl ?? selectedWeapon?.iconUrl ?? null,
@@ -1405,6 +1359,7 @@ function defaultBuild(characterId: string, characterMap: Map<string, GenshinChar
     rarity,
     consLevel: 0,
     weaponRarity: 4,
+    weaponRefinement: 1,
     weaponId: null,
     weaponName: null,
     weaponIconUrl: null,
@@ -1414,6 +1369,38 @@ function defaultBuild(characterId: string, characterMap: Map<string, GenshinChar
     weaponCost: 0,
     totalCost: 0,
   }, costCatalog);
+}
+
+function buildPreviewPayload(
+  team: TeamSide,
+  picks: NamedPick[],
+  values: Record<string, BuildValue>,
+  characterMap: Map<string, GenshinCharacter>,
+  costCatalog: CostCatalog,
+) {
+  return picks.map((pick) => {
+    const build = values[pick.characterId] ?? defaultBuild(pick.characterId, characterMap, costCatalog);
+    return {
+      player: team,
+      characterId: pick.characterId,
+      rarity: build.rarity,
+      consLevel: build.consLevel,
+      weaponRarity: build.weaponRarity,
+      totalCost: build.totalCost,
+      source: "PREVIEW",
+      enkaSnapshot: {
+        weaponId: build.weaponId,
+        weaponName: build.weaponName,
+        weaponIconUrl: build.weaponIconUrl,
+        weaponType: build.weaponType,
+        weaponRefinement: build.weaponRefinement,
+        characterBaseCost: build.characterBaseCost,
+        constellationCost: build.constellationCost,
+        weaponCost: build.weaponCost,
+        totalCost: build.totalCost,
+      },
+    };
+  });
 }
 
 function summarizeTeam(
@@ -1453,6 +1440,7 @@ function withCalculatedCost(value: BuildValue, costCatalog: CostCatalog): BuildV
     consLevel: value.consLevel,
     weaponId: value.weaponId,
     weaponRarity: value.weaponRarity,
+    weaponRefinement: value.weaponRefinement,
   });
 
   return {
@@ -1533,37 +1521,53 @@ function formatCost(value: number): string {
   return value.toFixed(2).replace(/\.00$/, "").replace(/(\.\d)0$/, "$1");
 }
 
-function parseWeaponSnapshot(snapshot: unknown): Pick<BuildValue, "weaponId" | "weaponName" | "weaponIconUrl" | "weaponType"> | null {
+function parseWeaponSnapshot(snapshot: unknown): Pick<BuildValue, "weaponId" | "weaponName" | "weaponIconUrl" | "weaponType" | "weaponRefinement"> | null {
   if (!snapshot || typeof snapshot !== "object") return null;
   const record = snapshot as Record<string, unknown>;
+  const refinement = Number(record.weaponRefinement);
   return {
     weaponId: typeof record.weaponId === "string" ? record.weaponId : null,
     weaponName: typeof record.weaponName === "string" ? record.weaponName : null,
     weaponIconUrl: typeof record.weaponIconUrl === "string" ? record.weaponIconUrl : null,
     weaponType: typeof record.weaponType === "string" ? record.weaponType : null,
+    weaponRefinement: Number.isInteger(refinement) && refinement >= 1 && refinement <= 5 ? refinement : 1,
   };
 }
 
 function calculateLead(blueCost: number, redCost: number, costPerPoint: number) {
   const diffSeconds = Math.abs(blueCost - redCost) * costPerPoint;
+  const even: TimeAdjustment = { mode: "EVEN", seconds: 0, label: "Cân bằng" };
   if (diffSeconds === 0) {
-    return { label: "Cân bằng", tone: "blue" as const, blueBonusSeconds: 0, redBonusSeconds: 0 };
+    return {
+      blue: even,
+      red: even,
+      tone: "blue" as const,
+    };
   }
+
+  const slower = (seconds: number): TimeAdjustment => ({
+    mode: "SLOWER",
+    seconds,
+    label: `Được chậm hơn ${seconds.toFixed(0)}s`,
+  });
+  const faster = (seconds: number): TimeAdjustment => ({
+    mode: "FASTER",
+    seconds,
+    label: `Phải nhanh hơn ${seconds.toFixed(0)}s`,
+  });
 
   if (blueCost < redCost) {
     return {
-      label: `${diffSeconds.toFixed(0)}s`,
+      blue: slower(diffSeconds),
+      red: faster(diffSeconds),
       tone: "blue" as const,
-      blueBonusSeconds: diffSeconds,
-      redBonusSeconds: 0,
     };
   }
 
   return {
-    label: `${diffSeconds.toFixed(0)}s`,
+    blue: faster(diffSeconds),
+    red: slower(diffSeconds),
     tone: "red" as const,
-    blueBonusSeconds: 0,
-    redBonusSeconds: diffSeconds,
   };
 }
 

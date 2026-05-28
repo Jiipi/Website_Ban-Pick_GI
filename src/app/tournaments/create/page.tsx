@@ -16,6 +16,7 @@ export const revalidate = 0;
 export default async function CreateTournamentPage() {
   const user = await services.auth.getCurrentUserRecord();
   if (!user) redirect("/login?next=/tournaments/create");
+  if (user.role !== "ADMIN") redirect("/tournaments");
 
   return (
     <>

@@ -4,6 +4,7 @@ import { requireClientId } from "@/application/shared/payload";
 import { isDraftAction, isTeamSide } from "@/domain/common/types";
 import { TURN_DURATION_SECONDS } from "@/domain/common/constants";
 import { draftPolicy } from "@/domain/draft/DraftPolicy";
+import { isCharacterBanned, normalizeConstraints } from "@/domain/tournament/TournamentConstraints";
 
 export class DraftService {
   constructor(private readonly repository: BanPickRepository) {}
@@ -37,6 +38,11 @@ export class DraftService {
 
       // Resolve turns from room's draft template
       const turns = draftPolicy.resolveTurns(room.draftTemplate);
+      const constraints = room.constraints ? normalizeConstraints(room.constraints) : null;
+      if (constraints && characterIds.some((characterId) => isCharacterBanned(characterId, constraints))) {
+        return failure(400, "Nhân vật này đã bị cấm trong luật giải đấu");
+      }
+
       const validation = draftPolicy.validateDraftAction({ logs: room.logs, player, action, characterIds, turns });
       if (!validation.ok) {
         return failure(400, validation.message);
@@ -82,9 +88,7 @@ export class DraftService {
         lastTurnStartedAt: new Date(), // Start of next turn
       };
 
-      if (validation.currentTurn.turnNumber === lastTurnNumber) {
-        roomUpdate.status = "BUILDING";
-      } else if (room.status === "WAITING") {
+      if (validation.currentTurn.turnNumber !== lastTurnNumber && room.status === "WAITING") {
         roomUpdate.status = "DRAFTING";
       }
 

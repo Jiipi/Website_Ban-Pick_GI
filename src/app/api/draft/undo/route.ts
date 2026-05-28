@@ -55,7 +55,8 @@ export async function POST(request: Request) {
 
       // Only host or the opponent team can approve
       const isHost = room.hostClientId === clientId;
-      if (!isHost && memberResult.data.team === payload.requestTeam) {
+      const requestTeam = String(payload.requestTeam ?? "");
+      if (!isHost && requestTeam && memberResult.data.team === requestTeam) {
         return jsonResult({ ok: false, status: 403, message: "Cannot approve own undo" });
       }
 

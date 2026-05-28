@@ -61,6 +61,25 @@ export class PrismaBanPickRepository implements BanPickRepository {
         hostUserId: data.hostUserId ?? undefined,
         hostName: data.hostName ?? undefined,
         hostClientId: data.hostClientId ?? undefined,
+        // Series fields
+        seriesId: data.seriesId ?? undefined,
+        seriesFormat: data.seriesFormat ?? undefined,
+        gameNumber: data.gameNumber ?? undefined,
+        fearlessDraft: data.fearlessDraft ?? undefined,
+        // Template & constraints
+        draftTemplate: data.draftTemplate ?? undefined,
+        constraints: data.constraints ?? undefined,
+        // Player slots (for series: new room inherits swapped slots)
+        blueClientId: data.blueClientId ?? undefined,
+        bluePlayerName: data.bluePlayerName ?? undefined,
+        blueUid: data.blueUid ?? undefined,
+        blueNickname: data.blueNickname ?? undefined,
+        blueAvatarUrl: data.blueAvatarUrl ?? undefined,
+        redClientId: data.redClientId ?? undefined,
+        redPlayerName: data.redPlayerName ?? undefined,
+        redUid: data.redUid ?? undefined,
+        redNickname: data.redNickname ?? undefined,
+        redAvatarUrl: data.redAvatarUrl ?? undefined,
       },
     });
   }
@@ -71,6 +90,17 @@ export class PrismaBanPickRepository implements BanPickRepository {
 
   async findRoomByCode(code: string): Promise<RoomRecord | null> {
     return this.client.room.findUnique({ where: { code } });
+  }
+
+  async findWaitingRoomByHost(userId: string, clientId: string): Promise<RoomRecord | null> {
+    return this.client.room.findFirst({
+      where: {
+        status: "WAITING",
+        hostUserId: userId,
+        hostClientId: clientId,
+      },
+      orderBy: { updatedAt: "desc" },
+    });
   }
 
   async findRoomWithLogsByCode(code: string): Promise<RoomWithLogs | null> {

@@ -493,10 +493,57 @@
    BRACKET VIEW
    ═══════════════════════════════════════════════ */
 
+.bracket-stage {
+  position: relative;
+}
+
+.bracket-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.bracket-toolbar button,
+.bracket-toolbar span {
+  min-width: 34px;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  border-radius: 8px;
+  background: rgba(15, 23, 42, 0.65);
+  color: #cbd5e1;
+  font-size: 10px;
+  font-weight: 900;
+  padding: 6px 9px;
+}
+
+.bracket-toolbar button {
+  cursor: pointer;
+  transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
+}
+
+.bracket-toolbar button:hover {
+  border-color: rgba(56, 189, 248, 0.42);
+  color: #67e8f9;
+  background: rgba(8, 47, 73, 0.35);
+}
+
 .bracket-container {
   width: 100%;
   overflow-x: auto;
   padding: 20px;
+  cursor: grab;
+  user-select: none;
+}
+
+.bracket-container:active {
+  cursor: grabbing;
+}
+
+.bracket-canvas {
+  width: max-content;
+  transform-origin: 0 0;
+  transition: transform 0.08s ease;
 }
 
 .bracket-svg {
@@ -622,4 +669,3 @@
   background: rgba(239, 68, 68, 0.1);
   border: 1px solid rgba(239, 68, 68, 0.2);
 }
-

@@ -1,5 +1,3 @@
-"use client";
-
 import { Home, UserPlus, Swords, Trophy, type LucideIcon } from "lucide-react";
 
 type Step = {

@@ -50,6 +50,8 @@ type DraftClientState = {
   setRealtimeBuildCount: (n: number) => void;
   realtimeBuilds: RealtimeBuildData[] | null;
   setRealtimeBuilds: (builds: RealtimeBuildData[]) => void;
+  mergeBuildEntry: (build: RealtimeBuildData) => void;
+  removeBuildEntry: (player: string, characterId: string) => void;
   realtimeCostCatalog: CostCatalog | null;
   setRealtimeCostCatalog: (catalog: CostCatalog) => void;
 
@@ -118,6 +120,7 @@ export type RealtimeRoomData = {
   spectatorDelay: number;
   discordWebhookUrl: string | null;
   isPublic: boolean;
+  draftTemplate: unknown;
 };
 
 export type RealtimeBuildData = {
@@ -205,7 +208,17 @@ export const useDraftStore = create<DraftClientState>((set, get) => ({
   realtimeBuildCount: null,
   setRealtimeBuildCount: (n) => set({ realtimeBuildCount: n }),
   realtimeBuilds: null,
-  setRealtimeBuilds: (builds) => set({ realtimeBuilds: builds }),
+  setRealtimeBuilds: (builds) => set({ realtimeBuilds: builds, realtimeBuildCount: builds.length }),
+  mergeBuildEntry: (build) => set((s) => {
+    const base = s.realtimeBuilds ?? [];
+    const next = base.filter((item) => item.player !== build.player || item.characterId !== build.characterId);
+    const merged = [...next, build];
+    return { realtimeBuilds: merged, realtimeBuildCount: merged.length };
+  }),
+  removeBuildEntry: (player, characterId) => set((s) => {
+    const merged = (s.realtimeBuilds ?? []).filter((item) => item.player !== player || item.characterId !== characterId);
+    return { realtimeBuilds: merged, realtimeBuildCount: merged.length };
+  }),
   realtimeCostCatalog: null,
   setRealtimeCostCatalog: (catalog) => set({ realtimeCostCatalog: catalog }),
 

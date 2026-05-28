@@ -39,6 +39,7 @@ export type BuildCostInput = {
   consLevel: number;
   weaponId?: string | null;
   weaponRarity: number;
+  weaponRefinement?: number | null;
 };
 
 export type BuildCostBreakdown = {
@@ -143,10 +144,15 @@ export function calculateBuildCost(catalog: CostCatalog, input: BuildCostInput):
   const constellationCost = input.consLevel * constellationUnitCost;
 
   const weaponRule = input.weaponId ? catalog.weapons[input.weaponId] : undefined;
-  const weaponCost = finiteNumber(
+  const baseWeaponCost = finiteNumber(
     weaponRule?.cost,
     input.weaponRarity === 5 ? catalog.defaults.weapon.rarity5 : catalog.defaults.weapon.rarity4,
   );
+  const refinement = Number.isInteger(input.weaponRefinement) && (input.weaponRefinement as number) >= 1 && (input.weaponRefinement as number) <= 5
+    ? (input.weaponRefinement as number)
+    : 1;
+  const refinementBonus = input.weaponId ? (refinement - 1) : 0;
+  const weaponCost = baseWeaponCost + refinementBonus;
 
   return normalizeBreakdown({
     characterBaseCost,
@@ -161,6 +167,7 @@ export function makeBuildCostSnapshot(input: {
   weaponName: string | null;
   weaponIconUrl: string | null;
   weaponType: string | null;
+  weaponRefinement?: number | null;
   cost: BuildCostBreakdown;
 }) {
   return {
@@ -168,6 +175,7 @@ export function makeBuildCostSnapshot(input: {
     weaponName: input.weaponName,
     weaponIconUrl: input.weaponIconUrl,
     weaponType: input.weaponType,
+    weaponRefinement: input.weaponRefinement ?? null,
     costVersion: 1,
     characterBaseCost: input.cost.characterBaseCost,
     constellationCost: input.cost.constellationCost,
@@ -179,6 +187,12 @@ export function makeBuildCostSnapshot(input: {
 export function getWeaponIdFromSnapshot(snapshot: unknown): string | null {
   if (!isRecord(snapshot)) return null;
   return typeof snapshot.weaponId === "string" && snapshot.weaponId.trim() ? snapshot.weaponId : null;
+}
+
+export function getWeaponRefinementFromSnapshot(snapshot: unknown): number | null {
+  if (!isRecord(snapshot)) return null;
+  const value = Number(snapshot.weaponRefinement);
+  return Number.isInteger(value) && value >= 1 && value <= 5 ? value : null;
 }
 
 export function getExactCostFromSnapshot(snapshot: unknown): number | null {

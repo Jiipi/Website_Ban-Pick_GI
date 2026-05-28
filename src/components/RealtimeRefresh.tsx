@@ -33,17 +33,24 @@ export function RealtimeRefresh({ roomId, roomCode }: Props) {
   const setRealtimeLogs = useDraftStore((s) => s.setRealtimeLogs);
   const setRealtimeStatus = useDraftStore((s) => s.setRealtimeStatus);
   const setRealtimeRoom = useDraftStore((s) => s.setRealtimeRoom);
-  const setRealtimeBuildCount = useDraftStore((s) => s.setRealtimeBuildCount);
   const setRealtimeBuilds = useDraftStore((s) => s.setRealtimeBuilds);
+  const mergeBuildEntry = useDraftStore((s) => s.mergeBuildEntry);
+  const removeBuildEntry = useDraftStore((s) => s.removeBuildEntry);
   const setRealtimeCostCatalog = useDraftStore((s) => s.setRealtimeCostCatalog);
   const mergeLogEntry = useDraftStore((s) => s.mergeLogEntry);
   const setFetchRoomData = useDraftStore((s) => s.setFetchRoomData);
   const fetchingRef = useRef(false);
+  const pendingFetchRef = useRef(false);
+  const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const fetchRoomDataRef = useRef<(() => Promise<void>) | null>(null);
   const bcRef = useRef<BroadcastChannel | null>(null);
 
   const fetchRoomData = useCallback(async () => {
-    // Deduplicate concurrent fetches
-    if (fetchingRef.current) return;
+    // Deduplicate concurrent fetches while keeping a queued final refresh.
+    if (fetchingRef.current) {
+      pendingFetchRef.current = true;
+      return;
+    }
     fetchingRef.current = true;
 
     try {
@@ -99,12 +106,11 @@ export function RealtimeRefresh({ roomId, roomCode }: Props) {
         spectatorDelay: room.spectatorDelay ?? 0,
         discordWebhookUrl: room.discordWebhookUrl ?? null,
         isPublic: room.isPublic ?? true,
+        draftTemplate: room.draftTemplate ?? null,
       });
       if (room.builds) {
-        setRealtimeBuildCount(room.builds.length);
         setRealtimeBuilds(room.builds);
       } else if (data.builds) {
-        setRealtimeBuildCount(data.builds.length);
         setRealtimeBuilds(data.builds);
       }
       if (data.costCatalog) {
@@ -114,8 +120,28 @@ export function RealtimeRefresh({ roomId, roomCode }: Props) {
       // Silently fail — next event will retry
     } finally {
       fetchingRef.current = false;
+      if (pendingFetchRef.current) {
+        pendingFetchRef.current = false;
+        setTimeout(() => {
+          void fetchRoomDataRef.current?.();
+        }, 0);
+      }
     }
-  }, [roomCode, setRealtimeLogs, setRealtimeStatus, setRealtimeRoom, setRealtimeBuildCount, setRealtimeBuilds, setRealtimeCostCatalog]);
+  }, [roomCode, setRealtimeLogs, setRealtimeStatus, setRealtimeRoom, setRealtimeBuilds, setRealtimeCostCatalog]);
+
+  useEffect(() => {
+    fetchRoomDataRef.current = fetchRoomData;
+    return () => {
+      fetchRoomDataRef.current = null;
+    };
+  }, [fetchRoomData]);
+
+  const scheduleFetchRoomData = useCallback(() => {
+    if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+    debounceTimerRef.current = setTimeout(() => {
+      void fetchRoomData();
+    }, 120);
+  }, [fetchRoomData]);
 
   // Register fetchRoomData in store so DraftBoard can call it
   useEffect(() => {
@@ -192,13 +218,21 @@ export function RealtimeRefresh({ roomId, roomCode }: Props) {
         // Also full fetch for complete consistency
         fetchRoomData();
       })
-      .on("postgres_changes", { event: "*", schema: "public", table: "CharacterBuild", filter: `roomId=eq.${roomId}` }, () => fetchRoomData())
+      .on("postgres_changes", { event: "*", schema: "public", table: "CharacterBuild", filter: `roomId=eq.${roomId}` }, (payload) => {
+        if (payload.eventType === "DELETE") {
+          const row = payload.old as Record<string, unknown> | null;
+          if (row) removeBuildEntry(String(row.player ?? ""), String(row.characterId ?? ""));
+        } else if (payload.new && typeof payload.new === "object") {
+          mergeBuildEntry(toRealtimeBuild(payload.new as Record<string, unknown>));
+        }
+        scheduleFetchRoomData();
+      })
       .subscribe();
 
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [roomId, fetchRoomData, setRealtimeStatus, mergeLogEntry]);
+  }, [roomId, fetchRoomData, scheduleFetchRoomData, setRealtimeStatus, mergeLogEntry, mergeBuildEntry, removeBuildEntry]);
 
   // ── Supabase broadcast: preview selections from other players ──
   const setPreviewSelections = useDraftStore((s) => s.setPreviewSelections);
@@ -230,6 +264,36 @@ export function RealtimeRefresh({ roomId, roomCode }: Props) {
     };
   }, [roomCode, setPreviewSelections, clearPreviewSelections]);
 
+  // ── Supabase broadcast: saved builds from captains ──
+  useEffect(() => {
+    const supabase = createSupabaseBrowserClient();
+    if (!supabase) return;
+
+    const myClientId = getOrCreateClientId();
+    const buildChan = supabase.channel(`build-${roomCode}`);
+
+    buildChan
+      .on("broadcast", { event: "build_saved" }, (payload) => {
+        const data = payload.payload;
+        if (data.clientId === myClientId) return;
+        void fetchRoomData();
+      })
+      .on("broadcast", { event: "build_preview" }, (payload) => {
+        const data = payload.payload;
+        if (data.clientId === myClientId || !Array.isArray(data.builds)) return;
+        for (const build of data.builds) {
+          if (build && typeof build === "object") {
+            mergeBuildEntry(build as Parameters<typeof mergeBuildEntry>[0]);
+          }
+        }
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(buildChan);
+    };
+  }, [roomCode, fetchRoomData]);
+
   // ── Supabase broadcast: ready check from captains ──
   const setBlueReady = useDraftStore((s) => s.setBlueReady);
   const setRedReady = useDraftStore((s) => s.setRedReady);
@@ -259,6 +323,19 @@ export function RealtimeRefresh({ roomId, roomCode }: Props) {
   }, [roomCode, setBlueReady, setRedReady]);
 
   return null;
+}
+
+function toRealtimeBuild(row: Record<string, unknown>) {
+  return {
+    player: String(row.player ?? ""),
+    characterId: String(row.characterId ?? ""),
+    rarity: Number(row.rarity ?? 0),
+    consLevel: Number(row.consLevel ?? 0),
+    weaponRarity: Number(row.weaponRarity ?? 0),
+    totalCost: Number(row.totalCost ?? 0),
+    source: typeof row.source === "string" ? row.source : undefined,
+    enkaSnapshot: row.enkaSnapshot,
+  };
 }
 
 // ── Broadcast preview: send character selection to all users ──
@@ -315,6 +392,83 @@ export function broadcastRoomUpdate(roomId: string) {
   } catch {
     // BroadcastChannel not available
   }
+}
+
+// ── Broadcast build saved: cross-device sync when a team locks in their build ──
+let _buildChannel: ReturnType<BrowserSupabaseClient["channel"]> | null = null;
+let _buildRoomCode: string | null = null;
+
+export function broadcastBuildSaved(roomCode: string, team: string, clientId: string) {
+  const supabase = getBroadcastSupabase();
+  if (!supabase) return;
+
+  const send = (channel: NonNullable<typeof _buildChannel>) => {
+    void channel.send({
+      type: "broadcast",
+      event: "build_saved",
+      payload: { team, clientId },
+    });
+  };
+
+  if (!_buildChannel || _buildRoomCode !== roomCode) {
+    if (_buildChannel) {
+      supabase.removeChannel(_buildChannel);
+    }
+    const channel = supabase.channel(`build-${roomCode}`);
+    _buildChannel = channel;
+    _buildRoomCode = roomCode;
+    channel.subscribe((status) => {
+      if (status === "SUBSCRIBED") {
+        send(channel);
+      }
+    });
+    return;
+  }
+
+  send(_buildChannel);
+}
+
+export function broadcastBuildPreview(
+  roomCode: string,
+  team: string,
+  builds: Array<{
+    player: string;
+    characterId: string;
+    rarity: number;
+    consLevel: number;
+    weaponRarity: number;
+    totalCost: number;
+    enkaSnapshot?: unknown;
+  }>,
+  clientId: string,
+) {
+  const supabase = getBroadcastSupabase();
+  if (!supabase) return;
+
+  const send = (channel: NonNullable<typeof _buildChannel>) => {
+    void channel.send({
+      type: "broadcast",
+      event: "build_preview",
+      payload: { team, clientId, builds },
+    });
+  };
+
+  if (!_buildChannel || _buildRoomCode !== roomCode) {
+    if (_buildChannel) {
+      supabase.removeChannel(_buildChannel);
+    }
+    const channel = supabase.channel(`build-${roomCode}`);
+    _buildChannel = channel;
+    _buildRoomCode = roomCode;
+    channel.subscribe((status) => {
+      if (status === "SUBSCRIBED") {
+        send(channel);
+      }
+    });
+    return;
+  }
+
+  send(_buildChannel);
 }
 
 // ── Broadcast ready status: send ready toggle to all users ──

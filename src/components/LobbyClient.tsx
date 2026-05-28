@@ -14,7 +14,7 @@ import {
   User,
   ChevronDown,
 } from "lucide-react";
-import { getOrCreateClientId } from "@/lib/auth";
+import { getOrCreateClientId, setSession, syncClientIdCookie } from "@/lib/auth";
 import { playClickSound, playConfirmSound, playErrorSound } from "@/lib/sounds";
 import { createBrowserClient } from "@supabase/ssr";
 import { PlayerProfile } from "./PlayerProfile";
@@ -149,15 +149,14 @@ export function LobbyClient() {
 
     playConfirmSound();
 
-    // Save session and redirect to room
-    const { setSession } = await import("@/lib/auth");
     setSession(invite.roomCode, {
       name: data.session.name,
       role: data.session.role,
       team: data.session.team,
     });
+    await syncClientIdCookie(data.session.clientId ?? cid);
 
-    router.push(`/room/${invite.roomCode}`);
+    router.push(`/room/${invite.roomCode}?cid=${encodeURIComponent(data.session.clientId ?? cid)}`);
   }
 
   async function handleDecline() {

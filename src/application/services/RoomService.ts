@@ -21,7 +21,7 @@ import type { TeamSide } from "@/domain/common/types";
 import { roomAccessPolicy } from "@/domain/room/RoomAccessPolicy";
 import { draftPolicy } from "@/domain/draft/DraftPolicy";
 import { costPolicy } from "@/domain/cost/CostPolicy";
-import { calculateBuildCost, getWeaponIdFromSnapshot, type CostCatalog } from "@/domain/cost/CostCatalog";
+import { calculateBuildCost, getWeaponIdFromSnapshot, getWeaponRefinementFromSnapshot, type CostCatalog } from "@/domain/cost/CostCatalog";
 
 export class RoomService {
   constructor(
@@ -298,6 +298,7 @@ export class RoomService {
       consLevel: build.consLevel,
       weaponId: getWeaponIdFromSnapshot(build.enkaSnapshot),
       weaponRarity: build.weaponRarity,
+      weaponRefinement: getWeaponRefinementFromSnapshot(build.enkaSnapshot),
     }).totalCost;
   }
 }

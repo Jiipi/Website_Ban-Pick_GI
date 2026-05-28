@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Trophy, UserPlus, Play, Users, Award } from "lucide-react";
+import { Award, Maximize2, Play, Trophy, UserPlus, Users } from "lucide-react";
 import type { TournamentRecord, ParticipantRecord, MatchRecord } from "@/domain/tournament/Tournament";
 import { BracketView } from "./BracketView";
 
@@ -103,7 +104,8 @@ export function TournamentDetailClient({ tournament, participants, matches, isOr
   return (
     <div className="space-y-5 animate-fade-in-up delay-100">
       {/* Tabs */}
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap gap-2">
         <TabButton active={tab === "bracket"} onClick={() => setTab("bracket")} icon={<Trophy size={14} />}>
           Bracket {matches.length > 0 && <span className="ml-1 text-[10px] text-slate-500">({matches.length})</span>}
         </TabButton>
@@ -113,6 +115,19 @@ export function TournamentDetailClient({ tournament, participants, matches, isOr
         <TabButton active={tab === "info"} onClick={() => setTab("info")} icon={<Award size={14} />}>
           Thông tin
         </TabButton>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {tournament.status === "UPCOMING" && participants.length < tournament.maxTeams && (
+            <Link href={`/tournaments/${tournament.slug}/register`} className="btn-primary">
+              <UserPlus size={14} />
+              Dang ky doi
+            </Link>
+          )}
+          <Link href={`/tournaments/${tournament.slug}/bracket`} className="btn-outline">
+            <Maximize2 size={14} />
+            Fullscreen
+          </Link>
+        </div>
       </div>
 
       {error && (
@@ -214,21 +229,24 @@ export function TournamentDetailClient({ tournament, participants, matches, isOr
                     <span className="font-mono text-xs font-black text-violet-300 tabular-nums w-8 text-center">
                       #{p.seed ?? idx + 1}
                     </span>
-                    {p.playerAvatarUrl ? (
+                    {p.logoUrl || p.playerAvatarUrl ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img
-                        src={p.playerAvatarUrl}
-                        alt={p.playerNickname}
+                        src={p.logoUrl ?? p.playerAvatarUrl ?? ""}
+                        alt={p.teamName ?? p.playerNickname}
                         className="h-9 w-9 rounded-full border border-slate-700/60 object-cover"
                       />
                     ) : (
                       <div className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-800 text-sm font-bold text-slate-500">
-                        {p.playerNickname.charAt(0)}
+                        {(p.teamName ?? p.playerNickname).charAt(0)}
                       </div>
                     )}
                     <div className="min-w-0">
-                      <p className="font-bold text-slate-200 truncate">{p.playerNickname}</p>
-                      <p className="font-mono text-[10px] text-slate-500">UID: {p.playerUid}</p>
+                      <p className="font-bold text-slate-200 truncate">{p.teamName ?? p.playerNickname}</p>
+                      <p className="font-mono text-[10px] text-slate-500">
+                        Captain: {p.captainUid ?? p.playerUid}
+                        {p.members?.length ? ` · ${p.members.length} members` : ""}
+                      </p>
                     </div>
                   </div>
                   {isOrganizer && tournament.status === "UPCOMING" && (

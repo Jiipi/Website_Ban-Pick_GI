@@ -18,7 +18,7 @@ import {
 
 type HostAction =
   | "RESET_DRAFT" | "RESET_BUILDS" | "UPDATE_COST"
-  | "KICK_PLAYER" | "FORCE_SKIP" | "START_DRAFT" | "SWAP_TEAMS"
+  | "KICK_PLAYER" | "FORCE_SKIP" | "START_DRAFT" | "START_BUILD" | "FINISH_MATCH" | "SWAP_TEAMS"
   | "SET_CONSTRAINTS" | "SET_DRAFT_TEMPLATE"
   | "PAUSE_MATCH" | "UNPAUSE_MATCH"
   | "SET_SERIES_FORMAT" | "START_NEXT_GAME"
@@ -28,7 +28,7 @@ type HostAction =
 
 const HOST_ACTIONS = new Set<string>([
   "RESET_DRAFT", "RESET_BUILDS", "UPDATE_COST",
-  "KICK_PLAYER", "FORCE_SKIP", "START_DRAFT", "SWAP_TEAMS",
+  "KICK_PLAYER", "FORCE_SKIP", "START_DRAFT", "START_BUILD", "FINISH_MATCH", "SWAP_TEAMS",
   "SET_CONSTRAINTS", "SET_DRAFT_TEMPLATE",
   "PAUSE_MATCH", "UNPAUSE_MATCH",
   "SET_SERIES_FORMAT", "START_NEXT_GAME",
@@ -105,6 +105,27 @@ export class HostRoomService {
         return success({ room: started });
       }
 
+      case "START_BUILD": {
+        const logs = await this.repository.findDraftLogs(room.id);
+        const turns = draftPolicy.resolveTurns(room.draftTemplate);
+        if (logs.length < turns.length) {
+          return failure(400, "Chưa thể vào build khi draft chưa hoàn tất");
+        }
+        if (room.status !== "DRAFTING") {
+          return failure(400, "Chỉ chuyển build từ trạng thái DRAFTING");
+        }
+        const updated = await this.repository.updateRoom(room.id, { status: "BUILDING" });
+        return success({ room: updated });
+      }
+
+      case "FINISH_MATCH": {
+        if (room.status !== "BUILDING") {
+          return failure(400, "Chỉ tổng kết từ trạng thái BUILDING");
+        }
+        const updated = await this.repository.updateRoom(room.id, { status: "FINISHED" });
+        return success({ room: updated });
+      }
+
       case "KICK_PLAYER": {
         const target = payload.target;
         if (target !== "BLUE" && target !== "RED") {
@@ -153,9 +174,7 @@ export class HostRoomService {
             lastTurnStartedAt: new Date(),
           };
 
-          if (currentTurn.turnNumber === lastTurnNumber) {
-            roomUpdate.status = "BUILDING";
-          } else if (room.status === "WAITING") {
+          if (currentTurn.turnNumber !== lastTurnNumber && room.status === "WAITING") {
             roomUpdate.status = "DRAFTING";
           }
 

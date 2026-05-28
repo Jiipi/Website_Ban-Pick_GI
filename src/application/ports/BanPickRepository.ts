@@ -149,6 +149,7 @@ export interface BanPickRepository {
   createRoom(data: RoomCreateData): Promise<RoomRecord>;
   findRoomById(id: string): Promise<RoomRecord | null>;
   findRoomByCode(code: string): Promise<RoomRecord | null>;
+  findWaitingRoomByHost(userId: string, clientId: string): Promise<RoomRecord | null>;
   findRoomWithLogsByCode(code: string): Promise<RoomWithLogs | null>;
   findRoomWithLogsAndBuildsByCode(code: string): Promise<RoomWithLogsAndBuilds | null>;
   findRoomWithBuildsByCode(code: string): Promise<RoomWithBuilds | null>;

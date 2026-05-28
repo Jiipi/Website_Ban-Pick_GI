@@ -1,11 +1,12 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useRef, useState } from "react";
 
 type Participant = {
   id: string;
   playerNickname: string;
   playerAvatarUrl: string | null;
+  teamName?: string | null;
 };
 
 type Match = {
@@ -39,6 +40,10 @@ function getParticipantName(participants: Participant[], id: string | null): str
 }
 
 export function BracketView({ matches, participants, isOrganizer, onRecordResult }: BracketViewProps) {
+  const [scale, setScale] = useState(1);
+  const [offset, setOffset] = useState({ x: 0, y: 0 });
+  const dragStart = useRef<{ x: number; y: number; ox: number; oy: number } | null>(null);
+
   const rounds = useMemo(() => {
     const roundMap = new Map<number, Match[]>();
     for (const m of matches) {
@@ -67,7 +72,58 @@ export function BracketView({ matches, participants, isOrganizer, onRecordResult
   });
 
   return (
-    <div className="bracket-container">
+    <div className="bracket-stage">
+      <div className="bracket-toolbar" aria-label="Bracket controls">
+        <button type="button" onClick={() => setScale((v) => Math.max(0.6, Number((v - 0.1).toFixed(2))))}>
+          -
+        </button>
+        <span>{Math.round(scale * 100)}%</span>
+        <button type="button" onClick={() => setScale((v) => Math.min(1.8, Number((v + 0.1).toFixed(2))))}>
+          +
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            setScale(1);
+            setOffset({ x: 0, y: 0 });
+          }}
+        >
+          Reset
+        </button>
+      </div>
+      <div
+        className="bracket-container"
+        onMouseDown={(event) => {
+          if (event.button !== 0) return;
+          dragStart.current = { x: event.clientX, y: event.clientY, ox: offset.x, oy: offset.y };
+        }}
+        onMouseMove={(event) => {
+          const start = dragStart.current;
+          if (!start) return;
+          setOffset({
+            x: start.ox + event.clientX - start.x,
+            y: start.oy + event.clientY - start.y,
+          });
+        }}
+        onMouseUp={() => {
+          dragStart.current = null;
+        }}
+        onMouseLeave={() => {
+          dragStart.current = null;
+        }}
+        onWheel={(event) => {
+          if (!event.ctrlKey) return;
+          event.preventDefault();
+          const delta = event.deltaY > 0 ? -0.08 : 0.08;
+          setScale((v) => Math.min(1.8, Math.max(0.6, Number((v + delta).toFixed(2)))));
+        }}
+      >
+      <div
+        className="bracket-canvas"
+        style={{
+          transform: `translate(${offset.x}px, ${offset.y}px) scale(${scale})`,
+        }}
+      >
       <svg className="bracket-svg" width={svgW} height={svgH} viewBox={`0 0 ${svgW} ${svgH}`}>
         {rounds.map(([roundNum, roundMatches], roundIdx) => {
           const colX = 20 + roundIdx * (MATCH_W + ROUND_GAP);
@@ -130,6 +186,8 @@ export function BracketView({ matches, participants, isOrganizer, onRecordResult
           );
         })}
       </svg>
+      </div>
+      </div>
     </div>
   );
 }

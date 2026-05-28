@@ -1,7 +1,7 @@
 import type { BanPickRepository } from "@/application/ports/BanPickRepository";
 import type { CostCatalogRepository } from "@/application/ports/CostCatalogRepository";
 import { failure, success } from "@/application/shared/ServiceResult";
-import { calculateBuildCost, getWeaponIdFromSnapshot } from "@/domain/cost/CostCatalog";
+import { calculateBuildCost, getWeaponIdFromSnapshot, getWeaponRefinementFromSnapshot } from "@/domain/cost/CostCatalog";
 
 export class HistoryService {
   constructor(
@@ -33,6 +33,7 @@ export class HistoryService {
         consLevel: build.consLevel,
         weaponId: getWeaponIdFromSnapshot(build.enkaSnapshot),
         weaponRarity: build.weaponRarity,
+        weaponRefinement: getWeaponRefinementFromSnapshot(build.enkaSnapshot),
       }).totalCost, 0);
       const redCost = redBuilds.reduce((sum, build) => sum + calculateBuildCost(costCatalog, {
         characterId: build.characterId,
@@ -40,6 +41,7 @@ export class HistoryService {
         consLevel: build.consLevel,
         weaponId: getWeaponIdFromSnapshot(build.enkaSnapshot),
         weaponRarity: build.weaponRarity,
+        weaponRefinement: getWeaponRefinementFromSnapshot(build.enkaSnapshot),
       }).totalCost, 0);
 
       let winner: "BLUE" | "RED" | "DRAW" | null = null;

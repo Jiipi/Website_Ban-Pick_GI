@@ -15,9 +15,13 @@ import type {
 export class PrismaTournamentRepository implements TournamentRepository {
   // ── Tournament ──
 
-  async listTournaments(filter: { status?: string; limit?: number }): Promise<TournamentRecord[]> {
+  async listTournaments(filter: { status?: string; format?: string; limit?: number }): Promise<TournamentRecord[]> {
+    const where: { status?: string; format?: string } = {};
+    if (filter.status) where.status = filter.status;
+    if (filter.format) where.format = filter.format;
+
     const rows = await prisma.tournament.findMany({
-      where: filter.status ? { status: filter.status } : undefined,
+      where: Object.keys(where).length > 0 ? where : undefined,
       orderBy: { createdAt: "desc" },
       take: filter.limit ?? 50,
       include: { _count: { select: { participants: true } } },
@@ -54,6 +58,12 @@ export class PrismaTournamentRepository implements TournamentRepository {
         maxTeams: input.maxTeams,
         startDate: input.startDate,
         endDate: input.endDate,
+        costCap: input.costCap,
+        bankTime: input.bankTime,
+        fearlessDraft: input.fearlessDraft,
+        patch: input.patch,
+        region: input.region,
+        rulesText: input.rulesText,
         organizerId: input.organizerId,
         organizerName: input.organizerName,
         bannerUrl: input.bannerUrl,
@@ -74,6 +84,7 @@ export class PrismaTournamentRepository implements TournamentRepository {
     const rows = await prisma.tournamentParticipant.findMany({
       where: { tournamentId },
       orderBy: { seed: { sort: "asc", nulls: "last" } },
+      include: { members: { orderBy: [{ role: "asc" }, { joinedAt: "asc" }] } },
     });
     return rows.map(toParticipantRecord);
   }
@@ -85,8 +96,23 @@ export class PrismaTournamentRepository implements TournamentRepository {
         playerUid: input.playerUid,
         playerNickname: input.playerNickname,
         playerAvatarUrl: input.playerAvatarUrl,
+        teamName: input.teamName ?? null,
+        logoUrl: input.logoUrl ?? null,
+        captainUid: input.captainUid ?? input.playerUid,
         seed: input.seed,
+        members: input.members?.length
+          ? {
+              create: input.members.map((member) => ({
+                uid: member.uid,
+                nickname: member.nickname,
+                avatarUrl: member.avatarUrl,
+                arLevel: member.arLevel,
+                role: member.role,
+              })),
+            }
+          : undefined,
       },
+      include: { members: { orderBy: [{ role: "asc" }, { joinedAt: "asc" }] } },
     });
     return toParticipantRecord(row);
   }
@@ -138,6 +164,8 @@ export class PrismaTournamentRepository implements TournamentRepository {
     if (input.redParticipantId !== undefined) data.redParticipantId = input.redParticipantId;
     if (input.winnerParticipantId !== undefined) data.winnerParticipantId = input.winnerParticipantId;
     if (input.roomCode !== undefined) data.roomCode = input.roomCode;
+    if (input.seriesId !== undefined) data.seriesId = input.seriesId;
+    if (input.seriesFormat !== undefined) data.seriesFormat = input.seriesFormat;
     if (input.completedAt !== undefined) data.completedAt = input.completedAt;
 
     const row = await prisma.tournamentMatch.update({
@@ -164,6 +192,12 @@ function toTournamentRecord(row: {
   maxTeams: number;
   startDate: Date | null;
   endDate: Date | null;
+  costCap: number;
+  bankTime: number;
+  fearlessDraft: boolean;
+  patch: string | null;
+  region: string | null;
+  rulesText: string | null;
   organizerId: string | null;
   organizerName: string | null;
   bannerUrl: string | null;
@@ -181,6 +215,12 @@ function toTournamentRecord(row: {
     maxTeams: row.maxTeams,
     startDate: row.startDate,
     endDate: row.endDate,
+    costCap: row.costCap,
+    bankTime: row.bankTime,
+    fearlessDraft: row.fearlessDraft,
+    patch: row.patch,
+    region: row.region,
+    rulesText: row.rulesText,
     organizerId: row.organizerId,
     organizerName: row.organizerName,
     bannerUrl: row.bannerUrl,
@@ -197,11 +237,37 @@ function toParticipantRecord(row: {
   playerUid: string;
   playerNickname: string;
   playerAvatarUrl: string | null;
+  teamName: string | null;
+  logoUrl: string | null;
+  captainUid: string | null;
   seed: number | null;
   eliminated: boolean;
   joinedAt: Date;
+  members?: Array<{
+    id: string;
+    participantId: string;
+    uid: string;
+    nickname: string;
+    avatarUrl: string | null;
+    arLevel: number | null;
+    role: string;
+    joinedAt: Date;
+  }>;
 }): ParticipantRecord {
-  return { ...row };
+  return {
+    id: row.id,
+    tournamentId: row.tournamentId,
+    playerUid: row.playerUid,
+    playerNickname: row.playerNickname,
+    playerAvatarUrl: row.playerAvatarUrl,
+    teamName: row.teamName,
+    logoUrl: row.logoUrl,
+    captainUid: row.captainUid,
+    seed: row.seed,
+    eliminated: row.eliminated,
+    joinedAt: row.joinedAt,
+    members: row.members,
+  };
 }
 
 function toMatchRecord(row: {
@@ -213,6 +279,8 @@ function toMatchRecord(row: {
   redParticipantId: string | null;
   winnerParticipantId: string | null;
   roomCode: string | null;
+  seriesId: string | null;
+  seriesFormat: string | null;
   scheduledAt: Date | null;
   completedAt: Date | null;
 }): MatchRecord {

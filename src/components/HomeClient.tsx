@@ -3,11 +3,17 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { Crown, Gamepad2, Loader2, ArrowRight, AlertCircle, Shield } from "lucide-react";
-import { DEFAULT_COST_PER_POINT, MIN_COST_PER_POINT, MAX_COST_PER_POINT, isValidCostPerPoint } from "@/lib/constants";
-import { getOrCreateClientId, setSession } from "@/lib/auth";
+import {
+  AlertCircle,
+  ArrowRight,
+  Crown,
+  Gamepad2,
+  Loader2,
+  Shield,
+} from "lucide-react";
+import { DEFAULT_COST_PER_POINT, isValidCostPerPoint } from "@/lib/constants";
+import { getOrCreateClientId, setSession, syncClientIdCookie } from "@/lib/auth";
 import { LogoutButton } from "./LogoutButton";
-import { HowItWorks } from "./HowItWorks";
 import { playClickSound, playConfirmSound, playErrorSound } from "@/lib/sounds";
 
 type HomeClientProps = {
@@ -19,7 +25,7 @@ type HomeClientProps = {
 
 export function HomeClient({ authenticated, userEmail, userName, userRole }: HomeClientProps) {
   const router = useRouter();
-  const [costPerPoint, setCostPerPoint] = useState(DEFAULT_COST_PER_POINT);
+  const [costPerPoint, setCostPerPoint] = useState(String(DEFAULT_COST_PER_POINT));
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -28,8 +34,9 @@ export function HomeClient({ authenticated, userEmail, userName, userRole }: Hom
       router.push("/login?redirect=/");
       return;
     }
-    if (!isValidCostPerPoint(costPerPoint)) {
-      setError(`Giây / cost phải là số nguyên từ ${MIN_COST_PER_POINT} đến ${MAX_COST_PER_POINT}`);
+    const cpp = Number(costPerPoint);
+    if (!isValidCostPerPoint(cpp)) {
+      setError("Giây / cost phải là số nguyên từ 1 đến 60.");
       playErrorSound();
       return;
     }
@@ -41,7 +48,7 @@ export function HomeClient({ authenticated, userEmail, userName, userRole }: Hom
     const response = await fetch("/api/room", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ costPerPoint, clientId }),
+      body: JSON.stringify({ costPerPoint: cpp, clientId }),
     });
     const data = await response.json();
     setLoading(false);
@@ -57,34 +64,29 @@ export function HomeClient({ authenticated, userEmail, userName, userRole }: Hom
       role: data.session.role,
       team: data.session.team,
     });
+    await syncClientIdCookie(data.clientId ?? clientId);
     playConfirmSound();
-    router.push(`/room/${data.room.code}`);
+    router.push(`/room/${data.room.code}?cid=${encodeURIComponent(data.clientId ?? clientId)}`);
   }
 
   return (
     <>
-      {/* ── Authenticated user bar ── */}
       {authenticated && (
-        <div className="mb-6 flex items-center justify-between rounded-xl border border-amber-500/25 bg-amber-500/[0.04] px-4 py-3">
-          <div className="flex items-center gap-3">
-            <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-amber-500/10 text-amber-400">
+        <div className="home-userbar">
+          <div className="home-userbar__profile">
+            <span className="home-userbar__avatar">
               <Crown size={18} />
             </span>
-            <div className="leading-tight">
-              <p className="text-sm font-semibold text-slate-200">
-                {userName ?? userEmail}
-              </p>
-              <p className="text-xs text-slate-500">
+            <div>
+              <p className="home-userbar__name">{userName ?? userEmail}</p>
+              <p className="home-userbar__meta">
                 {userRole === "ADMIN" ? "Admin" : "Trọng tài"} · {userEmail}
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="home-userbar__actions">
             {userRole === "ADMIN" && (
-              <Link
-                href="/admin"
-                className="inline-flex items-center gap-1.5 rounded-lg border border-amber-500/30 bg-amber-500/[0.06] px-3 py-1.5 text-xs font-semibold text-amber-300 transition-colors hover:bg-amber-500/15"
-              >
+              <Link href="/admin" className="home-userbar__admin">
                 <Shield size={13} />
                 Admin
               </Link>
@@ -94,59 +96,58 @@ export function HomeClient({ authenticated, userEmail, userName, userRole }: Hom
         </div>
       )}
 
-      {/* ── Role Selection Cards ── */}
-      <div className="grid gap-4 sm:grid-cols-2">
-        {/* Referee Card */}
-        <div className="role-card role-card--referee">
+      <div className="home-role-grid">
+        <article className="role-card role-card--referee">
+          <div className="role-card__topline" />
           <div className="role-card__header">
             <div className="role-card__icon role-card__icon--amber">
               <Crown size={20} />
             </div>
             <div>
-              <h2 className="role-card__title">Trọng tài</h2>
-              <p className="role-card__subtitle">Quản lý & điều hành trận đấu</p>
+              <p className="role-card__eyebrow">Dành cho trọng tài</p>
+              <h3 className="role-card__title">Tạo phòng đấu</h3>
             </div>
           </div>
 
-          <ul className="role-card__features">
-            <li><span className="role-card__bullet role-card__bullet--amber">•</span>Tạo phòng thi đấu</li>
-            <li><span className="role-card__bullet role-card__bullet--amber">•</span>Mời player từ sảnh chờ</li>
-            <li><span className="role-card__bullet role-card__bullet--amber">•</span>Điều khiển quá trình draft</li>
-            <li><span className="role-card__bullet role-card__bullet--amber">•</span>Xem kết quả & handicap</li>
-          </ul>
+          <p className="role-card__hint" style={{ flex: 1, color: '#cbd5e1', fontSize: '0.92rem', lineHeight: '1.6', margin: '0 0 1.5rem' }}>
+            Khởi tạo phòng đấu mới, thiết lập luật chơi, thời gian và điều hành lượt cấm/chọn thời gian thực của hai đội với đầy đủ quyền quản lý trận đấu.
+          </p>
 
-          <div className="role-card__divider" />
+          {authenticated && (
+              <div className="space-y-2 rounded-2xl border border-amber-400/20 bg-slate-950/35 p-4">
+                <label className="block text-xs font-black uppercase tracking-[0.22em] text-amber-200" htmlFor="cost-per-point">
+                  Giây cho mỗi 1 cost
+                </label>
+                <input
+                  id="cost-per-point"
+                  className="input-field font-mono"
+                  max={60}
+                  min={1}
+                  onChange={(event) => setCostPerPoint(event.target.value)}
+                  step={1}
+                  type="number"
+                  value={costPerPoint}
+                />
+                <p className="text-xs leading-relaxed text-slate-400">
+                  Mặc định 10s. Chỉ đổi nếu muốn luật thời gian khác.
+                </p>
+              </div>
+          )}
 
           {!authenticated ? (
             <div className="role-card__action">
               <p className="role-card__hint">
-                Chỉ Trọng tài đã đăng ký mới tạo được phòng.
+                Cần đăng nhập tài khoản trọng tài để bắt đầu tạo phòng thi đấu mới.
               </p>
-              <Link href="/login?redirect=/" className="btn-gold w-full justify-center">
-                Đăng nhập trọng tài
+              <Link href="/login?redirect=/" className="btn-gold">
+                Đăng nhập ngay
                 <ArrowRight size={16} />
               </Link>
             </div>
           ) : (
             <div className="role-card__action">
-              <label className="role-card__label">Giây / 1 cost</label>
-              <div className="flex items-center gap-2">
-                <input
-                  type="number"
-                  min={MIN_COST_PER_POINT}
-                  max={MAX_COST_PER_POINT}
-                  value={costPerPoint}
-                  onChange={(e) => {
-                    const v = parseInt(e.target.value, 10);
-                    if (!isNaN(v)) setCostPerPoint(v);
-                  }}
-                  className="cost-input flex-1"
-                />
-                <span className="text-xs text-slate-500 whitespace-nowrap">giây (1–60)</span>
-              </div>
-
               <button
-                className="btn-gold mt-4 w-full"
+                className="btn-gold"
                 disabled={loading}
                 onClick={createRoom}
                 type="button"
@@ -165,55 +166,48 @@ export function HomeClient({ authenticated, userEmail, userName, userRole }: Hom
               </button>
             </div>
           )}
-        </div>
+        </article>
 
-        {/* Player Card */}
-        <div className="role-card role-card--player">
+        <article className="role-card role-card--player">
+          <div className="role-card__topline" />
           <div className="role-card__header">
             <div className="role-card__icon role-card__icon--cyan">
               <Gamepad2 size={20} />
             </div>
             <div>
-              <h2 className="role-card__title">Tuyển thủ</h2>
-              <p className="role-card__subtitle">Đăng ký & tham gia thi đấu</p>
+              <p className="role-card__eyebrow">Dành cho tuyển thủ</p>
+              <h3 className="role-card__title">Vào sảnh chờ</h3>
             </div>
           </div>
 
-          <ul className="role-card__features">
-            <li><span className="role-card__bullet role-card__bullet--cyan">•</span>Đăng ký UID Genshin</li>
-            <li><span className="role-card__bullet role-card__bullet--cyan">•</span>Vào sảnh chờ đợi mời</li>
-            <li><span className="role-card__bullet role-card__bullet--cyan">•</span>Tham gia Ban/Pick realtime</li>
-            <li><span className="role-card__bullet role-card__bullet--cyan">•</span>Khai báo build & xem kết quả</li>
-          </ul>
-
-          <div className="role-card__divider" />
+          <p className="role-card__hint" style={{ flex: 1, color: '#cbd5e1', fontSize: '0.92rem', lineHeight: '1.6', margin: '0 0 1.5rem' }}>
+            Tham gia vào sảnh chờ thi đấu bằng UID Genshin của bạn, chờ lời mời từ trọng tài và thực hiện lượt cấm/chọn trực tiếp cùng đồng đội.
+          </p>
 
           <div className="role-card__action">
             <p className="role-card__hint">
-              Không cần đăng nhập. Chỉ cần UID Genshin Impact.
+              Không cần đăng nhập tài khoản. Tham gia cực kỳ nhanh chóng chỉ với UID Genshin Impact.
             </p>
             <Link
               href="/lobby"
-              className="btn-primary w-full justify-center"
+              className="btn-primary"
               onClick={playClickSound}
             >
-              Vào sảnh chờ
+              Vào sảnh chờ ngay
               <ArrowRight size={16} />
             </Link>
           </div>
-        </div>
+        </article>
       </div>
 
-      {/* ── Error ── */}
       {error && (
-        <p className="mt-5 flex items-start gap-2 rounded-lg border border-red-800/40 bg-red-950/30 px-4 py-3 text-sm text-red-200">
-          <AlertCircle size={16} className="mt-0.5 flex-shrink-0" />
-          {error}
-        </p>
+        <div style={{ display: 'flex', justifyContent: 'center', width: '100%' }}>
+          <p className="home-error">
+            <AlertCircle size={16} />
+            {error}
+          </p>
+        </div>
       )}
-
-      {/* ── How It Works ── */}
-      <HowItWorks />
     </>
   );
 }

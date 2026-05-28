@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { isValidCostPerPoint, isValidName } from "@/lib/constants";
-import { getOrCreateClientId, setSession } from "@/lib/auth";
+import { getOrCreateClientId, setSession, syncClientIdCookie } from "@/lib/auth";
 import { playClickSound, playConfirmSound, playErrorSound } from "@/lib/sounds";
 
 type ResultActionsProps = {
@@ -59,8 +59,9 @@ export function ResultActions({ roomCode, hostClientId, hostName, costPerPoint }
       role: data.session.role,
       team: data.session.team,
     });
+    await syncClientIdCookie(data.clientId ?? myClientId);
     playConfirmSound();
-    router.push(`/room/${data.room.code}`);
+    router.push(`/room/${data.room.code}?cid=${encodeURIComponent(data.clientId ?? myClientId)}`);
   }
 
   if (!isHost) return null;

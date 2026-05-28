@@ -13,6 +13,7 @@ type BuildPayload = {
   rarity?: unknown;
   consLevel?: unknown;
   weaponRarity?: unknown;
+  weaponRefinement?: unknown;
   weaponId?: unknown;
   weaponName?: unknown;
   weaponIconUrl?: unknown;
@@ -34,12 +35,12 @@ export class BuildService {
     const builds: BuildPayload[] = Array.isArray(payload.builds) ? payload.builds : [];
 
     if (!roomCode || !isTeamSide(player) || builds.length === 0) {
-      return failure(400, "Invalid build payload");
+      return failure(400, "Dữ liệu build không hợp lệ");
     }
 
     const room = await this.repository.findRoomWithLogsAndBuildsByCode(roomCode);
     if (!room) {
-      return failure(404, "Room not found");
+      return failure(404, "Không tìm thấy phòng");
     }
 
     if (room.status === "FINISHED") {
@@ -64,11 +65,11 @@ export class BuildService {
       const weaponRarity = Number(build.weaponRarity);
 
       if (!pickedIds.has(characterId)) {
-        return failure(400, `${characterId} was not picked by ${player}`);
+        return failure(400, `Nhân vật ${characterId} không thuộc lượt pick của ${player === "BLUE" ? "Đội Xanh" : "Đội Đỏ"}`);
       }
 
       if (![4, 5].includes(rarity) || !Number.isInteger(consLevel) || consLevel < 0 || consLevel > 6 || ![4, 5].includes(weaponRarity)) {
-        return failure(400, "Invalid build values");
+        return failure(400, "Thông tin build không hợp lệ");
       }
     }
 
@@ -100,18 +101,26 @@ export class BuildService {
         const consLevel = Number(build.consLevel);
         const weaponRarity = Number(build.weaponRarity);
         const weaponId = stringOrNull(build.weaponId, 120);
+        const refinementRaw = Number(build.weaponRefinement);
+        const weaponRefinement = weaponId
+          ? Number.isInteger(refinementRaw) && refinementRaw >= 1 && refinementRaw <= 5
+            ? refinementRaw
+            : 1
+          : null;
         const cost = calculateBuildCost(costCatalog, {
           characterId,
           characterRarity: rarity,
           consLevel,
           weaponId,
           weaponRarity,
+          weaponRefinement,
         });
         const weaponSnapshot = {
           weaponId,
           weaponName: stringOrNull(build.weaponName, 120),
           weaponIconUrl: stringOrNull(build.weaponIconUrl, 500),
           weaponType: stringOrNull(build.weaponType, 40),
+          weaponRefinement,
         };
         const snapshot = makeBuildCostSnapshot({ ...weaponSnapshot, cost });
 

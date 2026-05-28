@@ -7,6 +7,7 @@ import { DraftBoard } from "@/components/DraftBoard";
 import { InlineBuildBoard } from "@/components/InlineBuildBoard";
 import { DraftBoardSkeleton } from "@/components/draft/DraftBoardSkeleton";
 import { RealtimeRefresh } from "@/components/RealtimeRefresh";
+import { RoomAccessRecovery } from "@/components/RoomAccessRecovery";
 import { defaultCostCatalog } from "@/domain/cost/CostCatalog";
 import { SESSION_KEYS } from "@/lib/constants";
 
@@ -15,12 +16,15 @@ export const revalidate = 0;
 
 type RoomPageProps = {
   params: Promise<{ code: string }>;
+  searchParams?: Promise<{ cid?: string | string[] }>;
 };
 
-export default async function RoomPage({ params }: RoomPageProps) {
+export default async function RoomPage({ params, searchParams }: RoomPageProps) {
   const { code } = await params;
+  const query = searchParams ? await searchParams : {};
+  const queryClientId = typeof query.cid === "string" ? query.cid : "";
   const cookieStore = await cookies();
-  const clientId = cookieStore.get(SESSION_KEYS.clientId)?.value ?? "";
+  const clientId = queryClientId || cookieStore.get(SESSION_KEYS.clientId)?.value || "";
   const pageData = await services.room.getDraftPageData(code, clientId);
 
   if (!pageData.ok) {
@@ -44,6 +48,7 @@ export default async function RoomPage({ params }: RoomPageProps) {
             <Link href="/" className="btn-secondary">Về trang chủ</Link>
             <Link href="/lobby" className="btn-primary">Vào sảnh chờ</Link>
           </div>
+          <RoomAccessRecovery roomCode={room.code} />
         </div>
       </main>
     );
@@ -76,6 +81,7 @@ export default async function RoomPage({ params }: RoomPageProps) {
               <Link href="/" className="btn-secondary">Về trang chủ</Link>
               <Link href="/lobby" className="btn-primary">Vào sảnh chờ</Link>
             </div>
+            <RoomAccessRecovery roomCode={room.code} />
           </div>
         </main>
       );
@@ -142,6 +148,8 @@ export default async function RoomPage({ params }: RoomPageProps) {
         redAvatarUrl={room.redAvatarUrl}
         buildCount={room._count.builds}
         updatedAt={room.updatedAt.toISOString()}
+        lastTurnStartedAt={room.lastTurnStartedAt?.toISOString() ?? null}
+        draftTemplate={room.draftTemplate}
         />
       </Suspense>
     </main>

@@ -51,6 +51,9 @@ export default async function MetaPage() {
               name: c.name,
               element: c.element,
               rarity: c.rarity,
+              sideIconUrl: c.sideIconUrl,
+              iconUrl: c.iconUrl,
+              chibiIconUrl: c.chibiIconUrl,
             }))}
             stats={stats.map((s: { characterId: string; pickCount: number; banCount: number }) => ({
               characterId: s.characterId,

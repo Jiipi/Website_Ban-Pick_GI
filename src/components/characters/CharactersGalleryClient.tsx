@@ -3,7 +3,12 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { Search } from "lucide-react";
-import { ALL_ELEMENTS, ELEMENT_COLORS, ELEMENT_ICONS, type CharacterElement } from "@/lib/genshin";
+import {
+  ALL_ELEMENTS,
+  ELEMENT_COLORS,
+  ELEMENT_ICON_URLS,
+  type CharacterElement,
+} from "@/lib/genshin";
 import { playClickSound } from "@/lib/sounds";
 
 type CharacterItem = {
@@ -100,12 +105,13 @@ export function CharactersGalleryClient({ characters, stats, totalMatches }: Pro
               <button
                 key={el}
                 onClick={() => { setElementFilter(elementFilter === el ? "ALL" : el); playClickSound(); }}
-                className={`rounded-lg px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider transition-colors ${
+                className={`inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider transition-colors ${
                   elementFilter === el ? "bg-slate-100/10 text-slate-100" : "text-slate-500 hover:text-slate-300"
                 }`}
                 title={el}
               >
-                {ELEMENT_ICONS[el]} {el}
+                <ElementIcon element={el} className="h-4 w-4" />
+                <span>{el}</span>
               </button>
             ))}
 
@@ -173,15 +179,23 @@ export function CharactersGalleryClient({ characters, stats, totalMatches }: Pro
                     loading="lazy"
                   />
                 ) : (
-                  <span className="text-3xl text-slate-600">{ELEMENT_ICONS[ch.element as CharacterElement]}</span>
+                  <ElementIcon
+                    element={ch.element as CharacterElement}
+                    className="h-9 w-9 opacity-60"
+                  />
                 )}
 
                 {/* Element badge */}
                 <span
-                  className="absolute right-1 top-1 rounded-full px-1 py-0.5 text-[9px] font-black shadow"
-                  style={{ background: `${elementColor}30`, color: elementColor }}
+                  className="absolute right-1 top-1 flex h-6 w-6 items-center justify-center rounded-full border shadow"
+                  style={{
+                    background: `${elementColor}28`,
+                    borderColor: `${elementColor}55`,
+                    color: elementColor,
+                  }}
+                  title={ch.element}
                 >
-                  {ELEMENT_ICONS[ch.element as CharacterElement]}
+                  <ElementIcon element={ch.element as CharacterElement} className="h-4 w-4" />
                 </span>
 
                 {/* Rarity stars */}
@@ -215,5 +229,34 @@ export function CharactersGalleryClient({ characters, stats, totalMatches }: Pro
         </div>
       )}
     </>
+  );
+}
+
+function ElementIcon({
+  element,
+  className,
+}: {
+  element: CharacterElement;
+  className: string;
+}) {
+  const iconUrl = ELEMENT_ICON_URLS[element];
+
+  if (iconUrl) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={iconUrl}
+        alt=""
+        aria-hidden="true"
+        className={`${className} object-contain drop-shadow`}
+        loading="lazy"
+      />
+    );
+  }
+
+  return (
+    <span className={`inline-flex items-center justify-center ${className} text-[10px] font-black`}>
+      {element.slice(0, 2)}
+    </span>
   );
 }

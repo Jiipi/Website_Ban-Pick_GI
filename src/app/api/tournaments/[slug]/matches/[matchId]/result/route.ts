@@ -9,9 +9,15 @@ export async function POST(
   request: Request,
   { params }: { params: Promise<{ slug: string; matchId: string }> },
 ) {
-  const { matchId } = await params;
+  const { slug, matchId } = await params;
   const userResult = await services.auth.requireUser();
   if (!userResult.ok) return jsonResult(userResult);
+
+  const detail = await services.tournament.getTournament(slug);
+  if (!detail.ok) return jsonResult(detail);
+  if (userResult.data.role !== "ADMIN" && detail.data.tournament.organizerId !== userResult.data.id) {
+    return jsonResult(failure(403, "Chi admin hoac organizer co quyen ghi ket qua"));
+  }
 
   const body = await request.json().catch(() => null);
   if (!body || typeof body !== "object") {

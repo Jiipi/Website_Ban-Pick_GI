@@ -12,6 +12,12 @@ export type CreateTournamentInput = {
   maxTeams: number;
   startDate: Date | null;
   endDate: Date | null;
+  costCap: number;
+  bankTime: number;
+  fearlessDraft: boolean;
+  patch: string | null;
+  region: string | null;
+  rulesText: string | null;
   organizerId: string | null;
   organizerName: string | null;
   bannerUrl: string | null;
@@ -23,6 +29,16 @@ export type AddParticipantInput = {
   playerUid: string;
   playerNickname: string;
   playerAvatarUrl: string | null;
+  teamName?: string | null;
+  logoUrl?: string | null;
+  captainUid?: string | null;
+  members?: Array<{
+    uid: string;
+    nickname: string;
+    avatarUrl: string | null;
+    arLevel: number | null;
+    role: "CAPTAIN" | "PLAYER";
+  }>;
   seed: number | null;
 };
 
@@ -47,7 +63,7 @@ export type UpdateMatchInput = {
 };
 
 export interface TournamentRepository {
-  listTournaments(filter: { status?: string; limit?: number }): Promise<TournamentRecord[]>;
+  listTournaments(filter: { status?: string; format?: string; limit?: number }): Promise<TournamentRecord[]>;
   findTournamentBySlug(slug: string): Promise<TournamentRecord | null>;
   findTournamentById(id: string): Promise<TournamentRecord | null>;
   createTournament(input: CreateTournamentInput): Promise<TournamentRecord>;

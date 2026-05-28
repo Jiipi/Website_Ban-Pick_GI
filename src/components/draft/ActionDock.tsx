@@ -1,12 +1,13 @@
 "use client";
 
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { MessageCircle, Settings } from "lucide-react";
 import { RoleBadge } from "./RoleBadge";
 import { UndoButton } from "./UndoButton";
 import { HostControls } from "@/components/HostControls";
 import { LiveChat } from "@/components/LiveChat";
-import { playClickSound } from "@/lib/sounds";
+import { playClickSound, playConfirmSound, playErrorSound } from "@/lib/sounds";
 import { useDraft } from "./DraftContext";
 import { useDraftStore } from "@/stores/draftStore";
 
@@ -41,6 +42,32 @@ export function ActionDock({ submitTurn, lastConfirmedTurn }: ActionDockProps) {
   const hostPanelOpen = useDraftStore((s) => s.hostPanelOpen);
   const toggleHostPanel = useDraftStore((s) => s.toggleHostPanel);
   const session = useDraftStore((s) => s.session);
+  const [phaseBusy, setPhaseBusy] = useState(false);
+  const [phaseError, setPhaseError] = useState("");
+
+  async function startBuildPhase() {
+    if (!session || !userIsHost) return;
+    setPhaseBusy(true);
+    setPhaseError("");
+    playClickSound();
+
+    const response = await fetch(`/api/room/${roomCode}/host`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ clientId: session.clientId, action: "START_BUILD" }),
+    });
+
+    setPhaseBusy(false);
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({}));
+      setPhaseError(data.message ?? "Không thể chuyển sang build phase");
+      playErrorSound();
+      return;
+    }
+
+    playConfirmSound();
+    router.refresh();
+  }
 
   const turnLabel = draftDone
     ? "DRAFT COMPLETE"
@@ -59,7 +86,7 @@ export function ActionDock({ submitTurn, lastConfirmedTurn }: ActionDockProps) {
 
   return (
     <>
-      {error && <p className="draft-error">{error}</p>}
+      {(error || phaseError) && <p className="draft-error">{error || phaseError}</p>}
 
       <div className="draft-action-dock">
         {/* Progress bar */}
@@ -117,9 +144,20 @@ export function ActionDock({ submitTurn, lastConfirmedTurn }: ActionDockProps) {
             <MessageCircle size={18} />
           </button>
           {draftDone ? (
-            <button className="btn-primary" onClick={() => router.push(`/room/${roomCode}/build`)} type="button">
-              Build phase
-            </button>
+            userIsHost ? (
+              <button
+                className="btn-primary"
+                disabled={phaseBusy || status === "BUILDING"}
+                onClick={startBuildPhase}
+                type="button"
+              >
+                {status === "BUILDING" ? "Đang vào build..." : phaseBusy ? "..." : "Build phase"}
+              </button>
+            ) : (
+              <span className="rounded-md border border-amber-400/40 bg-amber-500/10 px-3 py-1.5 text-xs font-black uppercase tracking-wide text-amber-200">
+                ⏳ Chờ trọng tài bấm Build phase
+              </span>
+            )
           ) : (
             <>
               <UndoButton

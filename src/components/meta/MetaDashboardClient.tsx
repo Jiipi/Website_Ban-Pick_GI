@@ -4,13 +4,16 @@ import { useMemo, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { AlertTriangle, Crown, Shield, TrendingUp } from "lucide-react";
-import { ELEMENT_COLORS, getCharacterIconUrl } from "@/lib/genshin";
+import { ELEMENT_COLORS, ELEMENT_ICON_URLS, type CharacterElement } from "@/lib/genshin";
 
 type Character = {
   id: string;
   name: string;
   element: string;
   rarity: number;
+  sideIconUrl: string;
+  iconUrl: string;
+  chibiIconUrl: string;
 };
 
 type CharacterStat = {
@@ -185,11 +188,11 @@ function HighlightCard({ character, title, metric }: { character: RankedCharacte
       <p className="text-[10px] font-black uppercase tracking-wider text-slate-500">{title}</p>
       <div className="mt-3 flex items-center gap-3">
         <Image
-          src={getCharacterIconUrl(character.id)}
+          src={character.chibiIconUrl}
           alt={character.name}
           width={56}
           height={56}
-          className="rounded-xl bg-slate-800/60"
+          className="rounded-xl bg-slate-800/60 object-contain"
           unoptimized
         />
         <div>
@@ -202,28 +205,43 @@ function HighlightCard({ character, title, metric }: { character: RankedCharacte
 }
 
 function CharacterMetaCard({ character }: { character: RankedCharacter }) {
-  const elementColor = ELEMENT_COLORS[character.element as keyof typeof ELEMENT_COLORS] ?? "#94A3B8";
+  const element = character.element as CharacterElement;
+  const elementColor = ELEMENT_COLORS[element] ?? "#94A3B8";
   return (
     <Link
       href={`/characters/${character.id}`}
       className="rounded-2xl border border-slate-700/40 bg-slate-900/40 p-3 transition-colors hover:border-cyan-500/30 hover:bg-slate-800/40"
+      style={{ borderColor: `${elementColor}30` }}
     >
       <div className="flex items-center gap-3">
-        <Image
-          src={getCharacterIconUrl(character.id)}
-          alt={character.name}
-          width={52}
-          height={52}
-          className="rounded-xl bg-slate-800/60"
-          unoptimized
-        />
+        <div
+          className="relative flex h-[58px] w-[58px] shrink-0 items-center justify-center overflow-hidden rounded-xl bg-slate-800/60"
+          style={{ boxShadow: `inset 0 -3px 0 ${elementColor}88` }}
+        >
+          <Image
+            src={character.chibiIconUrl}
+            alt={character.name}
+            fill
+            sizes="58px"
+            className="object-contain"
+            unoptimized
+          />
+          <span
+            className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full border"
+            style={{ backgroundColor: `${elementColor}28`, borderColor: `${elementColor}55` }}
+            title={character.element}
+          >
+            <ElementIcon element={element} />
+          </span>
+        </div>
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-bold text-slate-100">{character.name}</p>
           <div className="mt-1 flex flex-wrap gap-1">
             <span
-              className="rounded px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider"
+              className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider"
               style={{ backgroundColor: `${elementColor}22`, color: elementColor }}
             >
+              <ElementIcon element={element} />
               {character.element}
             </span>
             <span className="rounded bg-amber-500/15 px-1.5 py-0.5 text-[9px] font-bold text-amber-300">
@@ -248,4 +266,23 @@ function CharacterMetaCard({ character }: { character: RankedCharacter }) {
       </div>
     </Link>
   );
+}
+
+function ElementIcon({ element }: { element: CharacterElement }) {
+  const iconUrl = ELEMENT_ICON_URLS[element];
+
+  if (iconUrl) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={iconUrl}
+        alt=""
+        aria-hidden="true"
+        className="h-3.5 w-3.5 object-contain drop-shadow"
+        loading="lazy"
+      />
+    );
+  }
+
+  return <span className="text-[9px] font-black">{element.slice(0, 2)}</span>;
 }

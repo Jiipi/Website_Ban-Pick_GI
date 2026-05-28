@@ -13,6 +13,12 @@ export type TournamentRecord = {
   maxTeams: number;
   startDate: Date | null;
   endDate: Date | null;
+  costCap: number;
+  bankTime: number;
+  fearlessDraft: boolean;
+  patch: string | null;
+  region: string | null;
+  rulesText: string | null;
   organizerId: string | null;
   organizerName: string | null;
   bannerUrl: string | null;
@@ -28,8 +34,23 @@ export type ParticipantRecord = {
   playerUid: string;
   playerNickname: string;
   playerAvatarUrl: string | null;
+  teamName: string | null;
+  logoUrl: string | null;
+  captainUid: string | null;
   seed: number | null;
   eliminated: boolean;
+  joinedAt: Date;
+  members?: TournamentTeamMemberRecord[];
+};
+
+export type TournamentTeamMemberRecord = {
+  id: string;
+  participantId: string;
+  uid: string;
+  nickname: string;
+  avatarUrl: string | null;
+  arLevel: number | null;
+  role: string;
   joinedAt: Date;
 };
 
@@ -42,6 +63,8 @@ export type MatchRecord = {
   redParticipantId: string | null;
   winnerParticipantId: string | null;
   roomCode: string | null;
+  seriesId?: string | null;
+  seriesFormat?: string | null;
   scheduledAt: Date | null;
   completedAt: Date | null;
 };
@@ -198,11 +221,17 @@ export function generateDoubleElimBracket(
  * Each participant plays every other participant once.
  * All matches are in round 1.
  */
+/**
+ * Generate round-robin bracket (all-vs-all).
+ * Uses the standard circle method with BYE handling for odd counts.
+ * Each participant plays every other participant once.
+ * All matches are in round 1.
+ */
 export function generateRoundRobinBracket(
   participants: ParticipantRecord[],
 ): Omit<MatchRecord, "id" | "tournamentId" | "roomCode" | "scheduledAt" | "completedAt">[] {
-  const matches: Omit<MatchRecord, "id" | "tournamentId" | "roomCode" | "scheduledAt" | "completedAt">[] = [];
-  let matchNum = 0;
+  if (participants.length < 2) return [];
+
   const seeded = [...participants].sort((a, b) => {
     if (a.seed == null && b.seed == null) return 0;
     if (a.seed == null) return 1;
@@ -210,34 +239,30 @@ export function generateRoundRobinBracket(
     return a.seed - b.seed;
   });
 
-  // Calculate round-robin rounds using circle method
-  const n = seeded.length;
-  const rounds = n % 2 === 0 ? n - 1 : n;
+  const slots: Array<ParticipantRecord | null> = seeded.length % 2 === 0 ? [...seeded] : [...seeded, null];
+  const rounds = slots.length - 1;
+  const matches: Omit<MatchRecord, "id" | "tournamentId" | "roomCode" | "scheduledAt" | "completedAt">[] = [];
+  let matchNum = 0;
 
-  for (let r = 0; r < rounds; r++) {
-    const roundMatches: { blue: ParticipantRecord; red: ParticipantRecord }[] = [];
-    const fixed = seeded[0];
-    const rotating = seeded.slice(1);
+  for (let round = 0; round < rounds; round++) {
+    for (let i = 0; i < slots.length / 2; i++) {
+      const blue = slots[i];
+      const red = slots[slots.length - 1 - i];
+      if (!blue || !red) continue;
 
-    // Rotate
-    const rotated = [...rotating.slice(r % rotating.length), ...rotating.slice(0, r % rotating.length)];
-
-    // Pair up
-    const all = [fixed, ...rotated];
-    const half = Math.floor(all.length / 2);
-    for (let i = 0; i < half; i++) {
-      roundMatches.push({ blue: all[i], red: all[all.length - 1 - i] });
-    }
-
-    for (const rm of roundMatches) {
       matches.push({
-        round: r + 1,
+        round: 1,
         matchNumber: matchNum++,
-        blueParticipantId: rm.blue.id,
-        redParticipantId: rm.red.id,
+        blueParticipantId: blue.id,
+        redParticipantId: red.id,
         winnerParticipantId: null,
       });
     }
+
+    const fixed = slots[0];
+    const last = slots[slots.length - 1];
+    const middle = slots.slice(1, -1);
+    slots.splice(0, slots.length, fixed, last, ...middle);
   }
 
   return matches;
