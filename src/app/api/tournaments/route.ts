@@ -1,6 +1,7 @@
 import { failure } from "@/application/shared/ServiceResult";
 import { services } from "@/composition/services";
 import { jsonResult } from "@/presentation/http/respond";
+import { readBearerToken } from "@/presentation/http/session";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -18,7 +19,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const userResult = await services.auth.requireAdmin();
+  const userResult = await services.auth.requireTournamentManager(readBearerToken(request));
   if (!userResult.ok) return jsonResult(userResult);
 
   const body = await request.json().catch(() => null);

@@ -1,6 +1,7 @@
 import type { AuthProvider } from "@/application/ports/AuthProvider";
 import type { BanPickRepository, UserRecord } from "@/application/ports/BanPickRepository";
 import { failure, success, type ServiceResult } from "@/application/shared/ServiceResult";
+import { canManageTournaments } from "@/domain/auth/accountRoles";
 import { isValidName, sanitizeName } from "@/domain/common/constants";
 
 export class AuthService {
@@ -63,6 +64,13 @@ export class AuthService {
     const user = await this.getCurrentUserRecord(accessToken);
     if (!user) return failure(401, "Chua dang nhap");
     if (user.role !== "ADMIN") return failure(403, "Chi admin co quyen");
+    return success(user);
+  }
+
+  async requireTournamentManager(accessToken?: string | null): Promise<ServiceResult<UserRecord>> {
+    const user = await this.getCurrentUserRecord(accessToken);
+    if (!user) return failure(401, "Chua dang nhap");
+    if (!canManageTournaments(user.role)) return failure(403, "Chi admin hoac trong tai co quyen");
     return success(user);
   }
 }

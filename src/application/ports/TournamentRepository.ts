@@ -24,6 +24,11 @@ export type CreateTournamentInput = {
   prizeInfo: string | null;
 };
 
+export type UpdateTournamentInput = Partial<Omit<CreateTournamentInput, "organizerId" | "organizerName">> & {
+  id: string;
+  status?: string;
+};
+
 export type AddParticipantInput = {
   tournamentId: string;
   playerUid: string;
@@ -67,7 +72,9 @@ export interface TournamentRepository {
   findTournamentBySlug(slug: string): Promise<TournamentRecord | null>;
   findTournamentById(id: string): Promise<TournamentRecord | null>;
   createTournament(input: CreateTournamentInput): Promise<TournamentRecord>;
+  updateTournament(input: UpdateTournamentInput): Promise<TournamentRecord>;
   updateTournamentStatus(id: string, status: string): Promise<void>;
+  deleteTournament(id: string): Promise<void>;
 
   listParticipants(tournamentId: string): Promise<ParticipantRecord[]>;
   addParticipant(input: AddParticipantInput): Promise<ParticipantRecord>;

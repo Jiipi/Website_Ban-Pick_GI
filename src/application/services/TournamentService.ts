@@ -1,4 +1,4 @@
-import type { TournamentRepository, CreateTournamentInput, UpdateMatchInput } from "@/application/ports/TournamentRepository";
+import type { TournamentRepository, CreateTournamentInput, UpdateMatchInput, UpdateTournamentInput } from "@/application/ports/TournamentRepository";
 import { failure, success } from "@/application/shared/ServiceResult";
 import {
   generateSingleElimBracket,
@@ -36,6 +36,26 @@ export class TournamentService {
 
     const tournament = await this.repo.createTournament(input);
     return success({ tournament });
+  }
+
+  async updateTournament(slug: string, input: Omit<UpdateTournamentInput, "id">) {
+    const tournament = await this.repo.findTournamentBySlug(slug);
+    if (!tournament) return failure(404, "Không tìm thấy giải đấu");
+
+    if (input.slug && input.slug !== tournament.slug) {
+      const existing = await this.repo.findTournamentBySlug(input.slug);
+      if (existing) return failure(409, "Slug đã tồn tại");
+    }
+
+    const updated = await this.repo.updateTournament({ ...input, id: tournament.id });
+    return success({ tournament: updated });
+  }
+
+  async deleteTournament(slug: string) {
+    const tournament = await this.repo.findTournamentBySlug(slug);
+    if (!tournament) return failure(404, "Không tìm thấy giải đấu");
+    await this.repo.deleteTournament(tournament.id);
+    return success({ deleted: true });
   }
 
   // ── Add Participant ──

@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Award, Maximize2, Play, Trophy, UserPlus, Users } from "lucide-react";
+import { authFetch } from "@/lib/auth";
 import type { TournamentRecord, ParticipantRecord, MatchRecord } from "@/domain/tournament/Tournament";
 import { BracketView } from "./BracketView";
 
@@ -22,6 +23,20 @@ export function TournamentDetailClient({ tournament, participants, matches, isOr
   const [tab, setTab] = useState<Tab>(matches.length > 0 ? "bracket" : "participants");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [canManage, setCanManage] = useState(isOrganizer);
+  const [editing, setEditing] = useState(false);
+  const [editName, setEditName] = useState(tournament.name);
+  const [editStatus, setEditStatus] = useState(tournament.status);
+  const [editDescription, setEditDescription] = useState(tournament.description ?? "");
+
+  useEffect(() => {
+    authFetch("/api/auth/me", { cache: "no-store" })
+      .then((res) => res.ok ? res.json() : null)
+      .then((user) => {
+        if (user?.role === "ADMIN" || user?.role === "REFEREE") setCanManage(true);
+      })
+      .catch(() => {});
+  }, []);
 
   // Add participant form state
   const [uid, setUid] = useState("");
@@ -32,7 +47,7 @@ export function TournamentDetailClient({ tournament, participants, matches, isOr
     setError("");
     setBusy(true);
     try {
-      const res = await fetch(`/api/tournaments/${tournament.slug}/participants`, {
+      const res = await authFetch(`/api/tournaments/${tournament.slug}/participants`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -61,7 +76,7 @@ export function TournamentDetailClient({ tournament, participants, matches, isOr
     setBusy(true);
     setError("");
     try {
-      const res = await fetch(`/api/tournaments/${tournament.slug}/bracket`, { method: "POST" });
+      const res = await authFetch(`/api/tournaments/${tournament.slug}/bracket`, { method: "POST" });
       const data = await res.json();
       if (!res.ok) {
         setError(data.message ?? "Tạo bracket thất bại");
@@ -81,7 +96,7 @@ export function TournamentDetailClient({ tournament, participants, matches, isOr
     setBusy(true);
     setError("");
     try {
-      const res = await fetch(
+      const res = await authFetch(
         `/api/tournaments/${tournament.slug}/participants?playerUid=${encodeURIComponent(playerUid)}`,
         { method: "DELETE" },
       );
@@ -99,7 +114,43 @@ export function TournamentDetailClient({ tournament, participants, matches, isOr
   }
 
   const canAddParticipants = tournament.status === "UPCOMING" && participants.length < tournament.maxTeams;
-  const canGenerateBracket = isOrganizer && tournament.status === "UPCOMING" && participants.length >= 2;
+  async function saveTournament() {
+    setBusy(true);
+    setError("");
+    const res = await authFetch(`/api/tournaments/${tournament.slug}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: editName,
+        status: editStatus,
+        description: editDescription,
+      }),
+    });
+    const data = await res.json().catch(() => ({}));
+    setBusy(false);
+    if (!res.ok) {
+      setError(data.message ?? "Cập nhật giải đấu thất bại");
+      return;
+    }
+    setEditing(false);
+    router.refresh();
+  }
+
+  async function deleteTournament() {
+    if (!confirm(`Xoá giải "${tournament.name}"? Hành động này xoá cả bracket và danh sách đăng ký.`)) return;
+    setBusy(true);
+    setError("");
+    const res = await authFetch(`/api/tournaments/${tournament.slug}`, { method: "DELETE" });
+    const data = await res.json().catch(() => ({}));
+    setBusy(false);
+    if (!res.ok) {
+      setError(data.message ?? "Xoá giải đấu thất bại");
+      return;
+    }
+    router.push("/tournaments");
+  }
+
+  const canGenerateBracket = canManage && tournament.status === "UPCOMING" && participants.length >= 2;
 
   return (
     <div className="space-y-5 animate-fade-in-up delay-100">
@@ -127,12 +178,55 @@ export function TournamentDetailClient({ tournament, participants, matches, isOr
             <Maximize2 size={14} />
             Fullscreen
           </Link>
+          {canManage && (
+            <>
+              <button className="btn-outline" onClick={() => setEditing((value) => !value)} type="button">
+                {editing ? "Đóng sửa" : "Sửa giải"}
+              </button>
+              <button className="btn-outline text-rose-300" disabled={busy} onClick={deleteTournament} type="button">
+                Xóa giải
+              </button>
+            </>
+          )}
         </div>
       </div>
 
       {error && (
         <div className="rounded-xl border border-rose-500/40 bg-rose-500/10 px-4 py-3 text-xs text-rose-200">
           ⚠️ {error}
+        </div>
+      )}
+
+      {canManage && editing && (
+        <div className="glass-strong rounded-3xl p-5">
+          <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_180px_auto]">
+            <input
+              className="input-field"
+              maxLength={80}
+              onChange={(event) => setEditName(event.target.value)}
+              value={editName}
+            />
+            <select
+              className="input-field"
+              onChange={(event) => setEditStatus(event.target.value as typeof editStatus)}
+              value={editStatus}
+            >
+              <option value="UPCOMING">Sắp tới</option>
+              <option value="ONGOING">Đang diễn ra</option>
+              <option value="FINISHED">Đã kết thúc</option>
+              <option value="CANCELLED">Đã hủy</option>
+            </select>
+            <button className="btn-primary" disabled={busy || !editName.trim()} onClick={saveTournament} type="button">
+              {busy ? "Đang lưu..." : "Cập nhật"}
+            </button>
+          </div>
+          <textarea
+            className="input-field mt-3 min-h-24"
+            maxLength={1000}
+            onChange={(event) => setEditDescription(event.target.value)}
+            placeholder="Mô tả giải đấu"
+            value={editDescription}
+          />
         </div>
       )}
 
@@ -154,7 +248,7 @@ export function TournamentDetailClient({ tournament, participants, matches, isOr
               )}
             </div>
           ) : (
-            <BracketView matches={matches} participants={participants} isOrganizer={isOrganizer} />
+            <BracketView matches={matches} participants={participants} isOrganizer={canManage} />
           )}
         </div>
       )}
@@ -249,7 +343,7 @@ export function TournamentDetailClient({ tournament, participants, matches, isOr
                       </p>
                     </div>
                   </div>
-                  {isOrganizer && tournament.status === "UPCOMING" && (
+                  {canManage && tournament.status === "UPCOMING" && (
                     <button
                       onClick={() => removeParticipant(p.playerUid)}
                       disabled={busy}

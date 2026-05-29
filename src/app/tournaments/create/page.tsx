@@ -1,8 +1,6 @@
 import Link from "next/link";
 import { ArrowLeft, Plus } from "lucide-react";
-import { redirect } from "next/navigation";
 import { NavBar } from "@/components/NavBar";
-import { services } from "@/composition/services";
 import { CreateTournamentClient } from "@/components/tournaments/CreateTournamentClient";
 
 export const metadata = {
@@ -14,10 +12,6 @@ export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
 export default async function CreateTournamentPage() {
-  const user = await services.auth.getCurrentUserRecord();
-  if (!user) redirect("/login?next=/tournaments/create");
-  if (user.role !== "ADMIN") redirect("/tournaments");
-
   return (
     <>
       <NavBar />
@@ -45,7 +39,7 @@ export default async function CreateTournamentPage() {
             </p>
           </div>
 
-          <CreateTournamentClient organizerName={user.name ?? user.email} />
+          <CreateTournamentClient organizerName="Trọng tài" />
         </div>
       </main>
     </>

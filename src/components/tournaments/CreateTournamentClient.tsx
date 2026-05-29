@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { CalendarDays, ChevronLeft, ChevronRight, Eye, Save, Settings, Trophy } from "lucide-react";
+import { authFetch } from "@/lib/auth";
 
 type TournamentFormat = "SINGLE_ELIM" | "DOUBLE_ELIM" | "ROUND_ROBIN";
 
@@ -82,7 +83,7 @@ export function CreateTournamentClient({ organizerName }: { organizerName: strin
     setSubmitting(true);
     setError("");
     try {
-      const res = await fetch("/api/tournaments", {
+      const res = await authFetch("/api/tournaments", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

@@ -9,3 +9,7 @@ export function isAccountRole(role: string): role is AccountRole {
 export function canCreateRoom(role: string | null | undefined): boolean {
   return role === "ADMIN" || role === "REFEREE";
 }
+
+export function canManageTournaments(role: string | null | undefined): boolean {
+  return role === "ADMIN" || role === "REFEREE";
+}

@@ -16,13 +16,14 @@ export const revalidate = 0;
 
 type RoomPageProps = {
   params: Promise<{ code: string }>;
-  searchParams?: Promise<{ cid?: string | string[] }>;
+  searchParams?: Promise<{ cid?: string | string[]; view?: string | string[] }>;
 };
 
 export default async function RoomPage({ params, searchParams }: RoomPageProps) {
   const { code } = await params;
   const query = searchParams ? await searchParams : {};
   const queryClientId = typeof query.cid === "string" ? query.cid : "";
+  const view = typeof query.view === "string" ? query.view : "";
   const cookieStore = await cookies();
   const clientId = queryClientId || cookieStore.get(SESSION_KEYS.clientId)?.value || "";
   const pageData = await services.room.getDraftPageData(code, clientId);
@@ -56,7 +57,7 @@ export default async function RoomPage({ params, searchParams }: RoomPageProps) 
 
   const { characters } = pageData.data;
 
-  if (room.status === "FINISHED") {
+  if (room.status === "FINISHED" && view !== "draft") {
     redirect(`/room/${room.code}/result`);
   }
 

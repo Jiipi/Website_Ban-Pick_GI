@@ -57,14 +57,12 @@ export default async function TournamentsPage({
               <strong className="text-slate-200">{tournaments.length}</strong> giải.
             </>
           }
-          actions={
-            user?.role === "ADMIN" ? (
+          actions={(
               <Link href="/tournaments/create" className="btn-primary">
                 <Plus size={14} />
                 Tạo giải mới
               </Link>
-            ) : undefined
-          }
+          )}
         />
 
         <div className="flex flex-wrap gap-2 animate-fade-in-up delay-100">

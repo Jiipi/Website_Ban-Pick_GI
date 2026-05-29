@@ -4,6 +4,7 @@ import type {
   CreateTournamentInput,
   TournamentRepository,
   UpdateMatchInput,
+  UpdateTournamentInput,
 } from "@/application/ports/TournamentRepository";
 import type {
   MatchRecord,
@@ -80,11 +81,61 @@ export class SupabaseTournamentRepository implements TournamentRepository {
     return toTournamentRecord(requireRow(data as DbRow | null, error), 0);
   }
 
+  async updateTournament(input: UpdateTournamentInput): Promise<TournamentRecord> {
+    const payload: Record<string, unknown> = { updatedAt: nowIso() };
+    if (input.slug !== undefined) payload.slug = input.slug;
+    if (input.name !== undefined) payload.name = input.name;
+    if (input.description !== undefined) payload.description = input.description;
+    if (input.format !== undefined) payload.format = input.format;
+    if (input.status !== undefined) payload.status = input.status;
+    if (input.maxTeams !== undefined) payload.maxTeams = input.maxTeams;
+    if (input.startDate !== undefined) payload.startDate = input.startDate;
+    if (input.endDate !== undefined) payload.endDate = input.endDate;
+    if (input.costCap !== undefined) payload.costCap = input.costCap;
+    if (input.bankTime !== undefined) payload.bankTime = input.bankTime;
+    if (input.fearlessDraft !== undefined) payload.fearlessDraft = input.fearlessDraft;
+    if (input.patch !== undefined) payload.patch = input.patch;
+    if (input.region !== undefined) payload.region = input.region;
+    if (input.rulesText !== undefined) payload.rulesText = input.rulesText;
+    if (input.bannerUrl !== undefined) payload.bannerUrl = input.bannerUrl;
+    if (input.prizeInfo !== undefined) payload.prizeInfo = input.prizeInfo;
+
+    const { data, error } = await supabase()
+      .from("Tournament")
+      .update(cleanForSupabase(payload))
+      .eq("id", input.id)
+      .select("*")
+      .single();
+
+    return toTournamentRecord(requireRow(data as DbRow | null, error), await countParticipants(input.id));
+  }
+
   async updateTournamentStatus(id: string, status: string): Promise<void> {
     const { error } = await supabase()
       .from("Tournament")
       .update(cleanForSupabase({ status, updatedAt: nowIso() }))
       .eq("id", id);
+    if (error) throw new Error(error.message);
+  }
+
+  async deleteTournament(id: string): Promise<void> {
+    const participants = await this.listParticipants(id);
+    const participantIds = participants.map((participant) => participant.id);
+
+    if (participantIds.length > 0) {
+      const { error: memberError } = await supabase()
+        .from("TournamentTeamMember")
+        .delete()
+        .in("participantId", participantIds);
+      if (memberError) throw new Error(memberError.message);
+    }
+
+    for (const table of ["TournamentMatch", "TournamentParticipant"]) {
+      const { error } = await supabase().from(table).delete().eq("tournamentId", id);
+      if (error) throw new Error(error.message);
+    }
+
+    const { error } = await supabase().from("Tournament").delete().eq("id", id);
     if (error) throw new Error(error.message);
   }
 

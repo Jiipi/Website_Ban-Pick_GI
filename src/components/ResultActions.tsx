@@ -12,13 +12,16 @@ type ResultActionsProps = {
   hostClientId: string | null;
   hostName: string | null;
   costPerPoint: number;
+  initialWinner: "BLUE" | "RED" | null;
 };
 
-export function ResultActions({ roomCode, hostClientId, hostName, costPerPoint }: ResultActionsProps) {
+export function ResultActions({ roomCode, hostClientId, hostName, costPerPoint, initialWinner }: ResultActionsProps) {
   const router = useRouter();
   const [isHost, setIsHost] = useState(false);
   const [creating, setCreating] = useState(false);
   const [resetting, setResetting] = useState(false);
+  const [recordingWinner, setRecordingWinner] = useState<"BLUE" | "RED" | null>(null);
+  const [winner, setWinner] = useState<"BLUE" | "RED" | null>(initialWinner);
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -89,6 +92,31 @@ export function ResultActions({ roomCode, hostClientId, hostName, costPerPoint }
     router.push(`/room/${roomCode}/build?cid=${encodeURIComponent(myClientId)}`);
   }
 
+  async function recordWinner(nextWinner: "BLUE" | "RED") {
+    setRecordingWinner(nextWinner);
+    setError("");
+    playClickSound();
+
+    const myClientId = getOrCreateClientId();
+    const response = await authFetch(`/api/room/${roomCode}/host`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ clientId: myClientId, action: "RECORD_GAME_WINNER", winner: nextWinner }),
+    });
+
+    setRecordingWinner(null);
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({}));
+      setError(data.message ?? "Không ghi nhận kết quả được");
+      playErrorSound();
+      return;
+    }
+
+    setWinner(nextWinner);
+    playConfirmSound();
+    router.refresh();
+  }
+
   if (!isHost) return null;
 
   return (
@@ -101,7 +129,7 @@ export function ResultActions({ roomCode, hostClientId, hostName, costPerPoint }
       >
         {creating ? "Đang tạo..." : "✨ Tạo trận mới"}
       </button>
-      <Link href={`/room/${roomCode}`} className="btn-outline">
+      <Link href={`/room/${roomCode}?view=draft`} className="btn-outline">
         ↻ Quay lại phòng
       </Link>
       <button
@@ -113,6 +141,22 @@ export function ResultActions({ roomCode, hostClientId, hostName, costPerPoint }
         {resetting ? "Đang mở build..." : "Sửa/lưu lại build"}
       </button>
       {error && <p className="w-full text-xs text-red-300">⚠️ {error}</p>}
+      <button
+        className={winner === "BLUE" ? "btn-primary" : "btn-outline"}
+        disabled={recordingWinner !== null}
+        onClick={() => recordWinner("BLUE")}
+        type="button"
+      >
+        {recordingWinner === "BLUE" ? "Đang lưu..." : winner === "BLUE" ? "Đã chọn Xanh thắng" : "Xanh thắng"}
+      </button>
+      <button
+        className={winner === "RED" ? "btn-primary" : "btn-outline"}
+        disabled={recordingWinner !== null}
+        onClick={() => recordWinner("RED")}
+        type="button"
+      >
+        {recordingWinner === "RED" ? "Đang lưu..." : winner === "RED" ? "Đã chọn Đỏ thắng" : "Đỏ thắng"}
+      </button>
     </>
   );
 }

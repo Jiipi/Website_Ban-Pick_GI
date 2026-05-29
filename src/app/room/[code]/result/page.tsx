@@ -105,7 +105,7 @@ export default async function ResultPage({ params }: ResultPageProps) {
               redCost={redCost}
               handicap={handicap}
             />
-            <Link className="btn-outline" href={`/room/${room.code}`}>
+            <Link className="btn-outline" href={`/room/${room.code}?view=draft`}>
               ← Về draft
             </Link>
             <Link className="btn-outline" href="/history">
@@ -119,6 +119,7 @@ export default async function ResultPage({ params }: ResultPageProps) {
               hostClientId={room.hostClientId}
               hostName={room.hostName}
               costPerPoint={room.costPerPoint}
+              initialWinner={readGameWinner(room.constraints)}
             />
           </div>
         </section>
@@ -201,4 +202,10 @@ function TeamBuilds({
 
 function formatCost(value: number): string {
   return value.toFixed(2).replace(/\.00$/, "").replace(/(\.\d)0$/, "$1");
+}
+
+function readGameWinner(constraints: unknown): "BLUE" | "RED" | null {
+  if (!constraints || typeof constraints !== "object") return null;
+  const winner = (constraints as Record<string, unknown>).gameWinner;
+  return winner === "BLUE" || winner === "RED" ? winner : null;
 }
