@@ -18,6 +18,7 @@ export function ResultActions({ roomCode, hostClientId, hostName, costPerPoint }
   const router = useRouter();
   const [isHost, setIsHost] = useState(false);
   const [creating, setCreating] = useState(false);
+  const [resetting, setResetting] = useState(false);
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -64,6 +65,30 @@ export function ResultActions({ roomCode, hostClientId, hostName, costPerPoint }
     router.push(`/room/${data.room.code}?cid=${encodeURIComponent(data.clientId ?? myClientId)}`);
   }
 
+  async function resetBuilds() {
+    setResetting(true);
+    setError("");
+    playClickSound();
+
+    const myClientId = getOrCreateClientId();
+    const response = await authFetch(`/api/room/${roomCode}/host`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ clientId: myClientId, action: "RESET_BUILDS" }),
+    });
+
+    setResetting(false);
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({}));
+      setError(data.message ?? "Không chuyển về màn build được");
+      playErrorSound();
+      return;
+    }
+
+    playConfirmSound();
+    router.push(`/room/${roomCode}/build?cid=${encodeURIComponent(myClientId)}`);
+  }
+
   if (!isHost) return null;
 
   return (
@@ -79,6 +104,14 @@ export function ResultActions({ roomCode, hostClientId, hostName, costPerPoint }
       <Link href={`/room/${roomCode}`} className="btn-outline">
         ↻ Quay lại phòng
       </Link>
+      <button
+        className="btn-outline"
+        disabled={resetting}
+        onClick={resetBuilds}
+        type="button"
+      >
+        {resetting ? "Đang mở build..." : "Sửa/lưu lại build"}
+      </button>
       {error && <p className="w-full text-xs text-red-300">⚠️ {error}</p>}
     </>
   );
