@@ -250,7 +250,7 @@ const SECTIONS: Section[] = [
         path: "/api/admin/users/[id]",
         description: "Thay đổi role user (chỉ admin).",
         auth: "admin",
-        body: [{ name: "role", type: "string", required: true, description: "ADMIN | REFEREE" }],
+        body: [{ name: "role", type: "string", required: true, description: "ADMIN | REFEREE | PLAYER" }],
       },
     ],
   },

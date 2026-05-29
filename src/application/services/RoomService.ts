@@ -18,10 +18,12 @@ import {
   sanitizeName,
 } from "@/domain/common/constants";
 import type { TeamSide } from "@/domain/common/types";
+import { canCreateRoom } from "@/domain/auth/accountRoles";
 import { roomAccessPolicy } from "@/domain/room/RoomAccessPolicy";
 import { draftPolicy } from "@/domain/draft/DraftPolicy";
 import { costPolicy } from "@/domain/cost/CostPolicy";
 import { calculateBuildCost, getWeaponIdFromSnapshot, getWeaponRefinementFromSnapshot, type CostCatalog } from "@/domain/cost/CostCatalog";
+import { getSeriesState } from "@/domain/series/SeriesPolicy";
 
 export class RoomService {
   constructor(
@@ -36,6 +38,10 @@ export class RoomService {
     session: { clientId: string; name: string; role: "HOST"; team: null };
     clientId: string;
   }>> {
+    if (!canCreateRoom(user.role)) {
+      return failure(403, "Chi admin hoac trong tai moi duoc tao phong");
+    }
+
     const clientIdResult = requireClientId(payload);
     if (!clientIdResult.ok) return clientIdResult;
 
@@ -174,6 +180,28 @@ export class RoomService {
       redCost,
       handicap,
     });
+  }
+
+  async getOverlayPageData(code: string) {
+    const room = await this.repository.findRoomWithLogsByCode(code.toUpperCase());
+    if (!room) return failure(404, "Room not found");
+
+    const characters = await this.characterGateway.getCharacters();
+    return success({ room, characters });
+  }
+
+  async getResultImageData(code: string) {
+    const room = await this.repository.findRoomWithLogsAndBuildsByCode(code.toUpperCase());
+    if (!room) return failure(404, "Room not found");
+    return success({ room });
+  }
+
+  async getSeriesState(code: string) {
+    const room = await this.repository.findRoomByCode(code.toUpperCase());
+    if (!room?.seriesId) return success({ series: null });
+
+    const seriesRooms = await this.repository.findRoomsBySeriesId(room.seriesId);
+    return success({ series: getSeriesState(seriesRooms) });
   }
 
   async joinRoom(roomCode: string, payload: Record<string, unknown>) {

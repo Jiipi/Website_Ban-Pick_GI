@@ -10,5 +10,6 @@ export type CreateAuthUserResult =
 
 export interface AuthProvider {
   getCurrentUser(): Promise<AuthUser | null>;
+  createPlayerUser(input: { email: string; password: string; name: string }): Promise<CreateAuthUserResult>;
   createRefereeUser(input: { email: string; password: string; name: string }): Promise<CreateAuthUserResult>;
 }

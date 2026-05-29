@@ -21,8 +21,6 @@ ENV NEXT_PUBLIC_SUPABASE_ANON_KEY=$NEXT_PUBLIC_SUPABASE_ANON_KEY
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-RUN ./node_modules/.bin/prisma generate
-
 RUN npm run build
 
 FROM base AS runner
@@ -37,14 +35,12 @@ COPY --from=builder /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/src/styles ./src/styles
-COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
 
 # Pre-create writable cache/catalog dirs for Next.js fetch revalidate and cost import
 RUN mkdir -p /app/.next/cache /app/data && chown -R nextjs:nodejs /app/.next /app/data
 
-# Keep the traced standalone node_modules intact. Next/Turbopack may emit
-# hashed external packages such as @prisma/client-<hash>; replacing this
-# folder with the deps stage drops those packages and breaks runtime imports.
+# Keep the traced standalone node_modules intact. Replacing this folder with
+# the deps stage can drop hashed external packages emitted by Next/Turbopack.
 RUN chown -R nextjs:nodejs /app/node_modules
 
 USER nextjs

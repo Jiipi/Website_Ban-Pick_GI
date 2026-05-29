@@ -12,6 +12,9 @@ export class LobbyService {
   ) {}
 
   async register(payload: Record<string, unknown>) {
+    const user = await this.authService.requireUser();
+    if (!user.ok) return user;
+
     const clientIdResult = requireClientId(payload);
     if (!clientIdResult.ok) return clientIdResult;
 

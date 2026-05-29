@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { DEFAULT_COST_PER_POINT, isValidCostPerPoint } from "@/lib/constants";
 import { getOrCreateClientId, setSession, syncClientIdCookie } from "@/lib/auth";
+import { canCreateRoom as canCreateRoomRole } from "@/domain/auth/accountRoles";
 import { LogoutButton } from "./LogoutButton";
 import { playClickSound, playConfirmSound, playErrorSound } from "@/lib/sounds";
 
@@ -25,6 +26,8 @@ type HomeClientProps = {
 
 export function HomeClient({ authenticated, userEmail, userName, userRole }: HomeClientProps) {
   const router = useRouter();
+  const canCreateRoom = authenticated && canCreateRoomRole(userRole);
+  const roleLabel = userRole === "ADMIN" ? "Admin" : userRole === "REFEREE" ? "Trọng tài" : "Tuyển thủ";
   const [costPerPoint, setCostPerPoint] = useState(String(DEFAULT_COST_PER_POINT));
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -32,6 +35,11 @@ export function HomeClient({ authenticated, userEmail, userName, userRole }: Hom
   async function createRoom() {
     if (!authenticated) {
       router.push("/login?redirect=/");
+      return;
+    }
+    if (!canCreateRoom) {
+      setError("Tài khoản PLAYER chỉ vào sảnh chờ bằng UID, không được tạo phòng.");
+      playErrorSound();
       return;
     }
     const cpp = Number(costPerPoint);
@@ -75,12 +83,12 @@ export function HomeClient({ authenticated, userEmail, userName, userRole }: Hom
         <div className="home-userbar">
           <div className="home-userbar__profile">
             <span className="home-userbar__avatar">
-              <Crown size={18} />
+              {canCreateRoom ? <Crown size={18} /> : <Gamepad2 size={18} />}
             </span>
             <div>
               <p className="home-userbar__name">{userName ?? userEmail}</p>
               <p className="home-userbar__meta">
-                {userRole === "ADMIN" ? "Admin" : "Trọng tài"} · {userEmail}
+                {roleLabel} · {userEmail}
               </p>
             </div>
           </div>
@@ -113,7 +121,7 @@ export function HomeClient({ authenticated, userEmail, userName, userRole }: Hom
             Khởi tạo phòng đấu mới, thiết lập luật chơi, thời gian và điều hành lượt cấm/chọn thời gian thực của hai đội với đầy đủ quyền quản lý trận đấu.
           </p>
 
-          {authenticated && (
+          {canCreateRoom && (
               <div className="space-y-2 rounded-2xl border border-amber-400/20 bg-slate-950/35 p-4">
                 <label className="block text-xs font-black uppercase tracking-[0.22em] text-amber-200" htmlFor="cost-per-point">
                   Giây cho mỗi 1 cost
@@ -141,6 +149,16 @@ export function HomeClient({ authenticated, userEmail, userName, userRole }: Hom
               </p>
               <Link href="/login?redirect=/" className="btn-gold">
                 Đăng nhập ngay
+                <ArrowRight size={16} />
+              </Link>
+            </div>
+          ) : !canCreateRoom ? (
+            <div className="role-card__action">
+              <p className="role-card__hint">
+                Tài khoản của bạn là PLAYER. Bạn có thể vào sảnh chờ, nhập UID Genshin và chờ trọng tài mời vào trận.
+              </p>
+              <Link href="/lobby" className="btn-primary" onClick={playClickSound}>
+                Vào sảnh chờ
                 <ArrowRight size={16} />
               </Link>
             </div>
@@ -185,17 +203,36 @@ export function HomeClient({ authenticated, userEmail, userName, userRole }: Hom
           </p>
 
           <div className="role-card__action">
-            <p className="role-card__hint">
-              Không cần đăng nhập tài khoản. Tham gia cực kỳ nhanh chóng chỉ với UID Genshin Impact.
-            </p>
-            <Link
-              href="/lobby"
-              className="btn-primary"
-              onClick={playClickSound}
-            >
-              Vào sảnh chờ ngay
-              <ArrowRight size={16} />
-            </Link>
+            {!authenticated ? (
+              <>
+                <p className="role-card__hint">
+                  Đăng ký tài khoản PLAYER để login, sau đó nhập UID Genshin trong sảnh chờ và nhận lời mời từ trọng tài.
+                </p>
+                <div className="grid gap-2">
+                  <Link href="/register?redirect=/lobby" className="btn-primary" onClick={playClickSound}>
+                    Đăng ký PLAYER
+                    <ArrowRight size={16} />
+                  </Link>
+                  <Link href="/login?redirect=/lobby" className="btn-outline" onClick={playClickSound}>
+                    Đã có tài khoản
+                  </Link>
+                </div>
+              </>
+            ) : (
+              <>
+                <p className="role-card__hint">
+                  Vào sảnh chờ bằng tài khoản hiện tại, nhập UID Genshin và giữ trạng thái online để trọng tài mời vào phòng.
+                </p>
+                <Link
+                  href="/lobby"
+                  className="btn-primary"
+                  onClick={playClickSound}
+                >
+                  Vào sảnh chờ ngay
+                  <ArrowRight size={16} />
+                </Link>
+              </>
+            )}
           </div>
         </article>
       </div>

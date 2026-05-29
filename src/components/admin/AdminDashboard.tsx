@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Users, Trophy, Activity, BarChart3, Crown, Shield } from "lucide-react";
+import { Users, Trophy, Activity, BarChart3, Crown, Shield, Gamepad2 } from "lucide-react";
 import { AdminCreateRefereeForm } from "@/components/AdminCreateRefereeForm";
 
 type User = {
@@ -104,12 +104,13 @@ function TabButton({
 function OverviewTab({ users, tournaments, health }: { users: User[]; tournaments: Tournament[]; health: Health }) {
   const adminCount = users.filter((u) => u.role === "ADMIN").length;
   const refereeCount = users.filter((u) => u.role === "REFEREE").length;
+  const playerCount = users.filter((u) => u.role === "PLAYER").length;
   const ongoingTournaments = tournaments.filter((t) => t.status === "ONGOING").length;
 
   return (
     <div className="space-y-5">
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard label="Tổng users" value={users.length} sub={`${adminCount} admin · ${refereeCount} referee`} accent="amber" />
+        <StatCard label="Tổng users" value={users.length} sub={`${adminCount} admin · ${refereeCount} referee · ${playerCount} player`} accent="amber" />
         <StatCard label="Giải đấu" value={tournaments.length} sub={`${ongoingTournaments} đang diễn ra`} accent="violet" />
         <StatCard label="Phòng đang chạy" value={health?.metrics.activeRooms ?? 0} sub={`${health?.metrics.totalRooms ?? 0} tổng`} accent="cyan" />
         <StatCard label="Online" value={health?.metrics.onlinePlayers ?? 0} sub="player đang online" accent="emerald" />
@@ -178,6 +179,11 @@ function UserRow({ user, isCurrentUser }: { user: User; isCurrentUser: boolean }
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const roleClass = user.role === "ADMIN"
+    ? "bg-amber-500/15 text-amber-300"
+    : user.role === "REFEREE"
+      ? "bg-cyan-500/15 text-cyan-300"
+      : "bg-emerald-500/15 text-emerald-300";
 
   async function changeRole(newRole: string) {
     if (!confirm(`Đổi role của ${user.email} thành ${newRole}?`)) return;
@@ -207,10 +213,8 @@ function UserRow({ user, isCurrentUser }: { user: User; isCurrentUser: boolean }
       <td className="px-5 py-2.5 font-mono text-xs text-slate-200">{user.email}</td>
       <td className="px-5 py-2.5 text-slate-300">{user.name ?? "—"}</td>
       <td className="px-5 py-2.5">
-        <span className={`flex w-fit items-center gap-1 rounded px-2 py-0.5 text-[10px] font-black ${
-          user.role === "ADMIN" ? "bg-amber-500/15 text-amber-300" : "bg-cyan-500/15 text-cyan-300"
-        }`}>
-          {user.role === "ADMIN" ? <Crown size={10} /> : <Shield size={10} />}
+        <span className={`flex w-fit items-center gap-1 rounded px-2 py-0.5 text-[10px] font-black ${roleClass}`}>
+          {user.role === "ADMIN" ? <Crown size={10} /> : user.role === "REFEREE" ? <Shield size={10} /> : <Gamepad2 size={10} />}
           {user.role}
         </span>
       </td>
@@ -236,6 +240,15 @@ function UserRow({ user, isCurrentUser }: { user: User; isCurrentUser: boolean }
                 className="rounded bg-cyan-500/15 px-2 py-1 text-[10px] font-bold text-cyan-300 hover:bg-cyan-500/25 transition-colors"
               >
                 → Referee
+              </button>
+            )}
+            {user.role !== "PLAYER" && (
+              <button
+                onClick={() => changeRole("PLAYER")}
+                disabled={busy}
+                className="rounded bg-emerald-500/15 px-2 py-1 text-[10px] font-bold text-emerald-300 hover:bg-emerald-500/25 transition-colors"
+              >
+                → Player
               </button>
             )}
           </div>

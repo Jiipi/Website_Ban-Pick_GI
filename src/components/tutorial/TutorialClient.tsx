@@ -25,16 +25,16 @@ type Step = {
 const STEPS: Step[] = [
   {
     id: "register",
-    title: "Bước 1 — Đăng ký UID",
+    title: "Bước 1 — Đăng ký tài khoản + UID",
     Icon: UserPlus,
     body: (
       <Block>
         <p>
-          Để mở khoá tính năng cá nhân (kết bạn, lịch sử trận, thành tựu), bạn cần đăng ký UID Genshin của
-          mình tại sảnh chờ.
+          Để mở khoá tính năng cá nhân (kết bạn, lịch sử trận, thành tựu), bạn đăng ký tài khoản PLAYER,
+          đăng nhập rồi liên kết UID Genshin của mình tại sảnh chờ.
         </p>
         <Tips>
-          <li>Vào <Code>/lobby</Code> và nhập UID Genshin (10 chữ số).</li>
+          <li>Tạo tài khoản ở <Code>/register</Code>, sau đó vào <Code>/lobby</Code> và nhập UID Genshin (10 chữ số).</li>
           <li>Hệ thống sẽ tự động lấy thông tin từ Enka.Network.</li>
           <li>Cookie <Code>bp_client_id</Code> sẽ liên kết thiết bị với UID này.</li>
         </Tips>

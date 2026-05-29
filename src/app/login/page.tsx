@@ -47,7 +47,7 @@ function LoginForm() {
     <form className="glass-strong w-full max-w-sm rounded-3xl p-7 animate-fade-in-up" onSubmit={submit}>
       <div className="mb-5 text-center">
         <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-amber-500/10 text-3xl">👑</div>
-        <p className="text-[10px] font-bold uppercase tracking-[0.4em] text-amber-300">Trọng tài</p>
+        <p className="text-[10px] font-bold uppercase tracking-[0.4em] text-amber-300">Tài khoản</p>
         <h1 className="mt-1 text-2xl font-black text-slate-100">Đăng nhập</h1>
       </div>
 
@@ -82,7 +82,11 @@ function LoginForm() {
       </button>
 
       <p className="mt-4 text-center text-[10px] text-slate-500">
-        Tài khoản chỉ được tạo bởi Admin.
+        Tuyển thủ có thể{" "}
+        <Link href={`/register?redirect=${encodeURIComponent(redirect)}`} className="text-cyan-300 hover:text-cyan-200">
+          đăng ký tài khoản PLAYER
+        </Link>
+        . Trọng tài vẫn do Admin cấp quyền.
       </p>
       <p className="mt-2 text-center">
         <Link href="/" className="text-[10px] text-slate-500 hover:text-cyan-400">

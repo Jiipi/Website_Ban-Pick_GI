@@ -32,18 +32,18 @@ import { EnkaHttpGateway } from "@/infrastructure/gateways/EnkaHttpGateway";
 import { GenshinHttpGateway } from "@/infrastructure/gateways/GenshinHttpGateway";
 import { GenshinWeaponGateway } from "@/infrastructure/gateways/GenshinWeaponGateway";
 import { FileCostCatalogRepository } from "@/infrastructure/repositories/FileCostCatalogRepository";
-import { PrismaActivityEventRepository } from "@/infrastructure/repositories/PrismaActivityEventRepository";
-import { PrismaBanPickRepository } from "@/infrastructure/repositories/PrismaBanPickRepository";
-import { PrismaCharacterStatsRepository } from "@/infrastructure/repositories/PrismaCharacterStatsRepository";
-import { PrismaEngagementMetricsRepository } from "@/infrastructure/repositories/PrismaEngagementMetricsRepository";
-import { PrismaFriendshipRepository } from "@/infrastructure/repositories/PrismaFriendshipRepository";
-import { PrismaNotificationRepository } from "@/infrastructure/repositories/PrismaNotificationRepository";
-import { PrismaPlayerStatsRepository } from "@/infrastructure/repositories/PrismaPlayerStatsRepository";
-import { PrismaSystemHealthRepository } from "@/infrastructure/repositories/PrismaSystemHealthRepository";
-import { PrismaTournamentRepository } from "@/infrastructure/repositories/PrismaTournamentRepository";
-import { PrismaUserSettingsRepository } from "@/infrastructure/repositories/PrismaUserSettingsRepository";
+import { SupabaseActivityEventRepository } from "@/infrastructure/repositories/SupabaseActivityEventRepository";
+import { SupabaseBanPickRepository } from "@/infrastructure/repositories/SupabaseBanPickRepository";
+import { SupabaseCharacterStatsRepository } from "@/infrastructure/repositories/SupabaseCharacterStatsRepository";
+import { SupabaseEngagementMetricsRepository } from "@/infrastructure/repositories/SupabaseEngagementMetricsRepository";
+import { SupabaseFriendshipRepository } from "@/infrastructure/repositories/SupabaseFriendshipRepository";
+import { SupabaseNotificationRepository } from "@/infrastructure/repositories/SupabaseNotificationRepository";
+import { SupabasePlayerStatsRepository } from "@/infrastructure/repositories/SupabasePlayerStatsRepository";
+import { SupabaseSystemHealthRepository } from "@/infrastructure/repositories/SupabaseSystemHealthRepository";
+import { SupabaseTournamentRepository } from "@/infrastructure/repositories/SupabaseTournamentRepository";
+import { SupabaseUserSettingsRepository } from "@/infrastructure/repositories/SupabaseUserSettingsRepository";
 
-const repository = new PrismaBanPickRepository();
+const repository = new SupabaseBanPickRepository();
 const costCatalogRepository = new FileCostCatalogRepository();
 const authProvider = new SupabaseAuthProvider();
 const enkaGateway = new EnkaHttpGateway();
@@ -52,15 +52,15 @@ const chibiImageGateway = new ChibiHttpGateway();
 const weaponGateway = new GenshinWeaponGateway();
 
 const authService = new AuthService(authProvider, repository);
-const characterStatsRepository = new PrismaCharacterStatsRepository();
-const playerStatsRepository = new PrismaPlayerStatsRepository(costCatalogRepository);
-const tournamentRepository = new PrismaTournamentRepository();
-const friendshipRepository = new PrismaFriendshipRepository();
-const notificationRepository = new PrismaNotificationRepository();
-const activityEventRepository = new PrismaActivityEventRepository();
+const characterStatsRepository = new SupabaseCharacterStatsRepository();
+const playerStatsRepository = new SupabasePlayerStatsRepository(costCatalogRepository);
+const tournamentRepository = new SupabaseTournamentRepository();
+const friendshipRepository = new SupabaseFriendshipRepository();
+const notificationRepository = new SupabaseNotificationRepository();
+const activityEventRepository = new SupabaseActivityEventRepository();
 const notificationService = new NotificationService(notificationRepository);
-const userSettingsRepository = new PrismaUserSettingsRepository();
-const engagementMetricsRepository = new PrismaEngagementMetricsRepository(costCatalogRepository);
+const userSettingsRepository = new SupabaseUserSettingsRepository();
+const engagementMetricsRepository = new SupabaseEngagementMetricsRepository(costCatalogRepository);
 
 export const services = {
   achievement: new AchievementService(engagementMetricsRepository),
@@ -87,7 +87,7 @@ export const services = {
   profile: new ProfileService(repository, enkaGateway),
   room: new RoomService(repository, enkaGateway, characterGateway, costCatalogRepository),
   session: new SessionService(),
-  systemHealth: new SystemHealthService(new PrismaSystemHealthRepository()),
+  systemHealth: new SystemHealthService(new SupabaseSystemHealthRepository()),
   tournament: new TournamentService(tournamentRepository),
   userSettings: new UserSettingsService(userSettingsRepository),
   weaponCatalog: new WeaponCatalogService(weaponGateway),

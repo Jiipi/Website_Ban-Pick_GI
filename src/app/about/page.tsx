@@ -63,7 +63,7 @@ export default function AboutPage() {
             <div className="grid gap-3 sm:grid-cols-2">
               <TechRow icon={<Layers size={14} />} label="Frontend" value="Next.js 15 (App Router) · TypeScript · Tailwind CSS" />
               <TechRow icon={<Layers size={14} />} label="State" value="Zustand" />
-              <TechRow icon={<Database size={14} />} label="Database" value="PostgreSQL · Prisma ORM" />
+              <TechRow icon={<Database size={14} />} label="Database" value="Supabase Database" />
               <TechRow icon={<Globe size={14} />} label="Real-time" value="Supabase Realtime (WebSockets)" />
               <TechRow icon={<Users size={14} />} label="Auth" value="Supabase Auth (SSR)" />
               <TechRow icon={<Sparkles size={14} />} label="Data" value="Enka.Network · Genshin.dev" />
@@ -74,13 +74,13 @@ export default function AboutPage() {
             <h2 className="text-lg font-black tracking-tight text-slate-100 mb-4">Kiến trúc</h2>
             <p className="text-sm leading-relaxed text-slate-300 mb-4">
               Dự án sử dụng <strong className="text-cyan-300">layered architecture</strong> trong Next.js runtime
-              để tách biệt rạch ròi giữa logic nghiệp vụ và phụ thuộc bên ngoài (Prisma, Supabase, HTTP):
+              để tách biệt rạch ròi giữa logic nghiệp vụ và phụ thuộc bên ngoài (Supabase, HTTP):
             </p>
             <div className="space-y-2 text-sm">
               <ArchRow color="cyan" label="Presentation" desc="src/app, src/components — Render UI, parse request" />
               <ArchRow color="violet" label="Application" desc="src/application — Service classes, use cases" />
               <ArchRow color="amber" label="Domain" desc="src/domain — Pure business rules (DraftPolicy, CostPolicy)" />
-              <ArchRow color="emerald" label="Infrastructure" desc="src/infrastructure — Prisma + HTTP gateway adapters" />
+              <ArchRow color="emerald" label="Infrastructure" desc="src/infrastructure — Supabase + HTTP gateway adapters" />
               <ArchRow color="rose" label="Composition" desc="src/composition — Wires adapters into services" />
             </div>
           </section>

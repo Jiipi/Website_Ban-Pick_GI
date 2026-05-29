@@ -15,7 +15,15 @@ export class SupabaseAuthProvider implements AuthProvider {
     };
   }
 
+  async createPlayerUser(input: { email: string; password: string; name: string }): Promise<CreateAuthUserResult> {
+    return this.createConfirmedUser(input);
+  }
+
   async createRefereeUser(input: { email: string; password: string; name: string }): Promise<CreateAuthUserResult> {
+    return this.createConfirmedUser(input);
+  }
+
+  private async createConfirmedUser(input: { email: string; password: string; name: string }): Promise<CreateAuthUserResult> {
     const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
     if (!url || !serviceKey) {

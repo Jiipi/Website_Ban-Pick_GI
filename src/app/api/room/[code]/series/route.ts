@@ -1,7 +1,5 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
-import { getSeriesState } from "@/domain/series/SeriesPolicy";
-import type { RoomRecord } from "@/application/ports/BanPickRepository";
+import { services } from "@/composition/services";
 
 export const dynamic = "force-dynamic";
 
@@ -12,16 +10,8 @@ export async function GET(_req: Request, ctx: RouteContext) {
   const roomCode = code.toUpperCase();
 
   try {
-    const roomRecord = await prisma.room.findUnique({ where: { code: roomCode } });
-    if (!roomRecord || !roomRecord.seriesId) {
-      return NextResponse.json({ series: null });
-    }
-    const seriesRooms = await prisma.room.findMany({
-      where: { seriesId: roomRecord.seriesId },
-      orderBy: { gameNumber: "asc" },
-    });
-    const state = getSeriesState(seriesRooms as unknown as RoomRecord[]);
-    return NextResponse.json({ series: state });
+    const result = await services.room.getSeriesState(roomCode);
+    return NextResponse.json(result.ok ? result.data : { series: null });
   } catch {
     return NextResponse.json({ series: null });
   }

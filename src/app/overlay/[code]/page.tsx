@@ -1,7 +1,6 @@
 import { notFound } from "next/navigation";
-import { prisma } from "@/lib/prisma";
 import { OverlayBoard } from "@/components/overlay/OverlayBoard";
-import { getCharacters } from "@/lib/genshin";
+import { services } from "@/composition/services";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -12,18 +11,9 @@ type OverlayPageProps = {
 
 export default async function OverlayPage({ params }: OverlayPageProps) {
   const { code } = await params;
-  const roomCode = code.toUpperCase();
-
-  const room = await prisma.room.findUnique({
-    where: { code: roomCode },
-    include: {
-      logs: { orderBy: [{ turnNumber: "asc" }, { id: "asc" }] },
-    },
-  });
-
-  if (!room) notFound();
-
-  const characters = await getCharacters();
+  const result = await services.room.getOverlayPageData(code);
+  if (!result.ok) notFound();
+  const { room, characters } = result.data;
 
   return (
     <main className="overlay-root">

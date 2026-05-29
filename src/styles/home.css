@@ -682,6 +682,7 @@
 }
 
 .role-card__action .btn-primary,
+.role-card__action .btn-outline,
 .role-card__action .btn-gold {
   width: 100%;
 }
@@ -1435,4 +1436,3 @@
     gap: 1.75rem;
   }
 }
-

@@ -19,7 +19,7 @@ export class SystemHealthService {
       const ping = await this.repo.pingDatabase();
       components.push({
         id: "database",
-        name: "PostgreSQL (Supabase)",
+        name: "Supabase Database",
         status: ping.ok ? "operational" : "outage",
         message: ping.message,
         latencyMs: ping.latencyMs,
@@ -27,7 +27,7 @@ export class SystemHealthService {
     } catch (error) {
       components.push({
         id: "database",
-        name: "PostgreSQL (Supabase)",
+        name: "Supabase Database",
         status: "outage",
         message: error instanceof Error ? error.message : "DB error",
         latencyMs: Date.now() - dbStart,

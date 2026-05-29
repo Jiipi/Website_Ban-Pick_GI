@@ -1,5 +1,5 @@
 import { ImageResponse } from "next/og";
-import { prisma } from "@/lib/prisma";
+import { services } from "@/composition/services";
 
 export const runtime = "nodejs";
 export const contentType = "image/png";
@@ -13,15 +13,9 @@ type Props = {
 export default async function OGImage({ params }: Props) {
   const { code } = await params;
 
-  const room = await prisma.room.findUnique({
-    where: { code: code.toUpperCase() },
-    include: {
-      logs: { orderBy: [{ turnNumber: "asc" }] },
-      builds: true,
-    },
-  });
+  const result = await services.room.getResultImageData(code);
 
-  if (!room) {
+  if (!result.ok) {
     return new ImageResponse(
       (
         <div
@@ -43,6 +37,8 @@ export default async function OGImage({ params }: Props) {
       { ...size },
     );
   }
+
+  const { room } = result.data;
 
   const blueTeam = room.blueTeamName ?? room.bluePlayerName ?? "BLUE";
   const redTeam = room.redTeamName ?? room.redPlayerName ?? "RED";

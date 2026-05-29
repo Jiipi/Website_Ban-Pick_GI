@@ -1,6 +1,7 @@
 import type { AuthProvider } from "@/application/ports/AuthProvider";
 import type { BanPickRepository } from "@/application/ports/BanPickRepository";
 import { failure, success, type ServiceResult } from "@/application/shared/ServiceResult";
+import { isAccountRole } from "@/domain/auth/accountRoles";
 import { isValidName, sanitizeName } from "@/domain/common/constants";
 
 export class AdminUserService {
@@ -14,7 +15,7 @@ export class AdminUserService {
   }
 
   async updateUserRole(targetId: string, newRole: string) {
-    if (!["ADMIN", "REFEREE"].includes(newRole)) return failure(400, "Role không hợp lệ");
+    if (!isAccountRole(newRole)) return failure(400, "Role không hợp lệ");
     if (!targetId) return failure(400, "Thiếu user id");
 
     const users = await this.repository.listUsers();
