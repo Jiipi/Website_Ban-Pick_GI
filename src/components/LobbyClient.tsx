@@ -14,9 +14,9 @@ import {
   User,
   ChevronDown,
 } from "lucide-react";
-import { getOrCreateClientId, setSession, syncClientIdCookie } from "@/lib/auth";
+import { authFetch, getCurrentTabUser, getOrCreateClientId, setSession, syncClientIdCookie } from "@/lib/auth";
 import { playClickSound, playConfirmSound, playErrorSound } from "@/lib/sounds";
-import { createBrowserClient } from "@supabase/ssr";
+import { createSupabaseBrowserClient } from "@/lib/supabase";
 import { PlayerProfile } from "./PlayerProfile";
 
 export function LobbyClient() {
@@ -35,28 +35,44 @@ export function LobbyClient() {
   const [accepting, setAccepting] = useState(false);
   const [clientId, setClientId] = useState("");
   const [showProfile, setShowProfile] = useState(false);
+  const [checkingAuth, setCheckingAuth] = useState(true);
 
   useEffect(() => {
     let cancelled = false;
-    queueMicrotask(() => {
+    queueMicrotask(async () => {
       if (!cancelled) {
-        setClientId(getOrCreateClientId());
+        const user = await getCurrentTabUser();
+        if (!user) {
+          router.replace("/login?redirect=/lobby");
+          return;
+        }
+
+        const cid = getOrCreateClientId();
+        setClientId(cid);
+        setCheckingAuth(false);
+
+        const profileResponse = await authFetch("/api/profile", { cache: "no-store" });
+        if (cancelled || !profileResponse.ok) return;
+        const profileBody = await profileResponse.json().catch(() => null);
+        const savedUid = typeof profileBody?.profile?.uid === "string" ? profileBody.profile.uid : "";
+        if (savedUid) {
+          setUid(savedUid);
+          void registerLobby(cid, "");
+        }
       }
     });
     return () => {
       cancelled = true;
     };
-  }, []);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [router]);
 
   // Subscribe to lobby invite changes via Supabase Realtime
   useEffect(() => {
     if (!clientId || !registered) return;
 
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-    if (!supabaseUrl || !supabaseKey) return;
-
-    const supabase = createBrowserClient(supabaseUrl, supabaseKey);
+    const supabase = createSupabaseBrowserClient();
+    if (!supabase) return;
 
     const channel = supabase
       .channel(`lobby-${clientId}`)
@@ -103,10 +119,18 @@ export function LobbyClient() {
     const cid = clientId || getOrCreateClientId();
     if (!clientId) setClientId(cid);
 
-    const response = await fetch("/api/lobby", {
+    await registerLobby(cid, trimmed);
+  }
+
+  async function registerLobby(cid: string, uidToRegister: string) {
+    setLoading(true);
+    const payload: Record<string, string> = { clientId: cid };
+    if (uidToRegister) payload.uid = uidToRegister;
+
+    const response = await authFetch("/api/lobby", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ clientId: cid, uid: trimmed }),
+      body: JSON.stringify(payload),
     });
 
     const data = await response.json();
@@ -118,7 +142,8 @@ export function LobbyClient() {
       return;
     }
 
-    setNickname(data.player.nickname);
+    setUid(data.player.uid);
+    setNickname(data.player.displayName ?? data.player.nickname);
     setAvatarUrl(data.enka?.avatarUrl ?? "");
     setRegistered(true);
     playConfirmSound();
@@ -131,7 +156,7 @@ export function LobbyClient() {
 
     const cid = clientId || getOrCreateClientId();
 
-    const response = await fetch(`/api/room/${invite.roomCode}/invite/accept`, {
+    const response = await authFetch(`/api/room/${invite.roomCode}/invite/accept`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ clientId: cid }),
@@ -165,7 +190,7 @@ export function LobbyClient() {
 
     const cid = clientId || getOrCreateClientId();
 
-    await fetch(`/api/room/${invite.roomCode}/invite/accept`, {
+    await authFetch(`/api/room/${invite.roomCode}/invite/accept`, {
       method: "DELETE",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ clientId: cid }),
@@ -177,7 +202,7 @@ export function LobbyClient() {
 
   const handleLeaveLobby = useCallback(async () => {
     const cid = clientId || getOrCreateClientId();
-    await fetch("/api/lobby", {
+    await authFetch("/api/lobby", {
       method: "DELETE",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ clientId: cid }),
@@ -196,6 +221,15 @@ export function LobbyClient() {
       }
     };
   }, [registered, handleLeaveLobby]);
+
+  if (checkingAuth) {
+    return (
+      <section className="glass-strong mx-auto w-full max-w-xl rounded-3xl p-8 text-center text-sm text-slate-400">
+        <Loader2 size={18} className="mx-auto mb-3 animate-spin text-cyan-300" />
+        Äang kiá»ƒm tra phiĂªn Ä‘Äƒng nháº­p...
+      </section>
+    );
+  }
 
   return (
     <section className="glass-strong mx-auto w-full max-w-xl rounded-3xl p-8 sm:p-10">

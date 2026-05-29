@@ -1,16 +1,11 @@
 import { LobbyClient } from "@/components/LobbyClient";
 import { PageHeader } from "@/components/shell/PageHeader";
-import { services } from "@/composition/services";
 import { Gamepad2 } from "lucide-react";
-import { redirect } from "next/navigation";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
 export default async function LobbyPage() {
-  const user = await services.auth.getCurrentUserRecord();
-  if (!user) redirect("/login?redirect=/lobby");
-
   return (
     <main id="main" className="site-shell__main">
       <div className="mx-auto w-full max-w-3xl space-y-6">

@@ -9,8 +9,8 @@ export class AuthService {
     private readonly repository: BanPickRepository,
   ) {}
 
-  async getCurrentUserRecord(): Promise<UserRecord | null> {
-    const authUser = await this.authProvider.getCurrentUser();
+  async getCurrentUserRecord(accessToken?: string | null): Promise<UserRecord | null> {
+    const authUser = await this.authProvider.getCurrentUser(accessToken);
     if (!authUser) return null;
 
     return this.repository.upsertUser({
@@ -53,14 +53,14 @@ export class AuthService {
     return success({ ok: true, user: { id: created.user.id, email, name, role: "PLAYER" } });
   }
 
-  async requireUser(): Promise<ServiceResult<UserRecord>> {
-    const user = await this.getCurrentUserRecord();
+  async requireUser(accessToken?: string | null): Promise<ServiceResult<UserRecord>> {
+    const user = await this.getCurrentUserRecord(accessToken);
     if (!user) return failure(401, "Chua dang nhap");
     return success(user);
   }
 
-  async requireAdmin(): Promise<ServiceResult<UserRecord>> {
-    const user = await this.getCurrentUserRecord();
+  async requireAdmin(accessToken?: string | null): Promise<ServiceResult<UserRecord>> {
+    const user = await this.getCurrentUserRecord(accessToken);
     if (!user) return failure(401, "Chua dang nhap");
     if (user.role !== "ADMIN") return failure(403, "Chi admin co quyen");
     return success(user);

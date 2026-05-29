@@ -11,6 +11,7 @@ import {
   Check,
   X,
 } from "lucide-react";
+import { authFetch } from "@/lib/auth";
 import { playClickSound, playConfirmSound, playErrorSound } from "@/lib/sounds";
 
 type ShowcaseChar = {
@@ -58,7 +59,7 @@ export function PlayerProfile({ clientId }: PlayerProfileProps) {
       if (manual) setRefreshing(true);
       setError("");
       try {
-        const res = await fetch(
+        const res = await authFetch(
           `/api/profile?clientId=${encodeURIComponent(clientId)}`,
           { cache: "no-store" },
         );
@@ -102,7 +103,7 @@ export function PlayerProfile({ clientId }: PlayerProfileProps) {
     if (saving || !data) return;
     setSaving(true);
     try {
-      const res = await fetch("/api/profile", {
+      const res = await authFetch("/api/profile", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -134,7 +135,7 @@ export function PlayerProfile({ clientId }: PlayerProfileProps) {
     setSaving(true);
     playClickSound();
     try {
-      const res = await fetch("/api/profile", {
+      const res = await authFetch("/api/profile", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

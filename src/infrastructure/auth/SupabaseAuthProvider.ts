@@ -3,7 +3,12 @@ import { createSupabaseServerClient } from "@/lib/supabase-server";
 import type { AuthProvider, AuthUser, CreateAuthUserResult } from "@/application/ports/AuthProvider";
 
 export class SupabaseAuthProvider implements AuthProvider {
-  async getCurrentUser(): Promise<AuthUser | null> {
+  async getCurrentUser(accessToken?: string | null): Promise<AuthUser | null> {
+    if (accessToken) {
+      const user = await this.getUserFromToken(accessToken);
+      if (user) return user;
+    }
+
     const supabase = await createSupabaseServerClient();
     const { data, error } = await supabase.auth.getUser();
     if (error || !data.user) return null;
@@ -21,6 +26,24 @@ export class SupabaseAuthProvider implements AuthProvider {
 
   async createRefereeUser(input: { email: string; password: string; name: string }): Promise<CreateAuthUserResult> {
     return this.createConfirmedUser(input);
+  }
+
+  private async getUserFromToken(accessToken: string): Promise<AuthUser | null> {
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    if (!url || !anonKey) return null;
+
+    const client = createClient(url, anonKey, {
+      auth: { autoRefreshToken: false, persistSession: false },
+    });
+    const { data, error } = await client.auth.getUser(accessToken);
+    if (error || !data.user) return null;
+
+    return {
+      id: data.user.id,
+      email: data.user.email ?? null,
+      name: typeof data.user.user_metadata?.name === "string" ? data.user.user_metadata.name : null,
+    };
   }
 
   private async createConfirmedUser(input: { email: string; password: string; name: string }): Promise<CreateAuthUserResult> {

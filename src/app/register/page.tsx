@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowRight, Gamepad2, Loader2 } from "lucide-react";
 import { createSupabaseBrowserClient } from "@/lib/supabase";
+import { authFetch, getOrCreateClientId } from "@/lib/auth";
 import { playClickSound, playConfirmSound, playErrorSound } from "@/lib/sounds";
 
 function RegisterForm() {
@@ -14,6 +15,7 @@ function RegisterForm() {
 
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
+  const [uid, setUid] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -50,14 +52,31 @@ function RegisterForm() {
       email: email.trim(),
       password,
     });
-    setLoading(false);
 
     if (signInError) {
+      setLoading(false);
       setError(signInError.message);
       playErrorSound();
       return;
     }
 
+    if (uid.trim()) {
+      const cid = getOrCreateClientId();
+      const profileResponse = await authFetch("/api/lobby", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ clientId: cid, uid: uid.trim() }),
+      });
+      if (!profileResponse.ok) {
+        const profileBody = await profileResponse.json().catch(() => ({}));
+        setLoading(false);
+        setError(profileBody.message ?? "Khong luu duoc UID mac dinh");
+        playErrorSound();
+        return;
+      }
+    }
+
+    setLoading(false);
     playConfirmSound();
     router.push(redirect);
     router.refresh();
@@ -81,6 +100,17 @@ function RegisterForm() {
         required
         maxLength={24}
         autoComplete="name"
+      />
+
+      <label className="mt-4 block text-[11px] font-bold uppercase tracking-wider text-slate-400">Genshin UID</label>
+      <input
+        className="input-field mt-2 font-mono tracking-[0.1em]"
+        value={uid}
+        onChange={(event) => setUid(event.target.value.replace(/\D/g, "").slice(0, 10))}
+        minLength={9}
+        maxLength={10}
+        inputMode="numeric"
+        placeholder="600012345"
       />
 
       <label className="mt-4 block text-[11px] font-bold uppercase tracking-wider text-slate-400">Email</label>

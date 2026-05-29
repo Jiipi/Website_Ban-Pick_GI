@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { isValidCostPerPoint, isValidName } from "@/lib/constants";
-import { getOrCreateClientId, setSession, syncClientIdCookie } from "@/lib/auth";
+import { authFetch, getOrCreateClientId, setSession, syncClientIdCookie } from "@/lib/auth";
 import { playClickSound, playConfirmSound, playErrorSound } from "@/lib/sounds";
 
 type ResultActionsProps = {
@@ -40,7 +40,7 @@ export function ResultActions({ roomCode, hostClientId, hostName, costPerPoint }
     const cpp = isValidCostPerPoint(costPerPoint) ? costPerPoint : 10;
     const myClientId = getOrCreateClientId();
 
-    const response = await fetch("/api/room", {
+    const response = await authFetch("/api/room", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ costPerPoint: cpp, clientId: myClientId }),

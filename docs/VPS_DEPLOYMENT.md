@@ -2,6 +2,8 @@
 
 This project uses Next.js as the full-stack app and Supabase as the hosted Auth + Database + Realtime backend. The VPS only runs the Next.js container and Nginx/SSL.
 
+For AWS EC2 Ubuntu, use `docs/AWS_EC2_DEPLOYMENT.md`.
+
 ## 1. Prepare the VPS
 
 Use Ubuntu 22.04 or 24.04.

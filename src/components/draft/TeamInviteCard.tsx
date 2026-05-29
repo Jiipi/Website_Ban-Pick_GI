@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { UserPlus, X, Send, Loader2, Search } from "lucide-react";
+import { authFetch } from "@/lib/auth";
 import { playClickSound, playConfirmSound, playErrorSound } from "@/lib/sounds";
 
 type TeamInviteCardProps = {
@@ -57,7 +58,7 @@ export function TeamInviteCard({
   const fetchOnlinePlayers = useCallback(async () => {
     setLoadingSuggestions(true);
     try {
-      const response = await fetch("/api/lobby/online", { cache: "no-store" });
+      const response = await authFetch("/api/lobby/online", { cache: "no-store" });
       if (!response.ok) {
         setOnlinePlayers([]);
         return;

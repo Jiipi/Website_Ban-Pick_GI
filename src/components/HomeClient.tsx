@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   AlertCircle,
   ArrowRight,
@@ -12,7 +12,7 @@ import {
   Shield,
 } from "lucide-react";
 import { DEFAULT_COST_PER_POINT, isValidCostPerPoint } from "@/lib/constants";
-import { getOrCreateClientId, setSession, syncClientIdCookie } from "@/lib/auth";
+import { authFetch, getOrCreateClientId, setSession, syncClientIdCookie } from "@/lib/auth";
 import { canCreateRoom as canCreateRoomRole } from "@/domain/auth/accountRoles";
 import { LogoutButton } from "./LogoutButton";
 import { playClickSound, playConfirmSound, playErrorSound } from "@/lib/sounds";
@@ -26,14 +26,38 @@ type HomeClientProps = {
 
 export function HomeClient({ authenticated, userEmail, userName, userRole }: HomeClientProps) {
   const router = useRouter();
-  const canCreateRoom = authenticated && canCreateRoomRole(userRole);
-  const roleLabel = userRole === "ADMIN" ? "Admin" : userRole === "REFEREE" ? "Trọng tài" : "Tuyển thủ";
+  const [tabUser, setTabUser] = useState<{ email: string | null; name: string | null; role: string | null } | null>(null);
+  const effectiveAuthenticated = Boolean(tabUser) || authenticated;
+  const effectiveEmail = tabUser?.email ?? userEmail;
+  const effectiveName = tabUser?.name ?? userName;
+  const effectiveRole = tabUser?.role ?? userRole;
+  const canCreateRoom = effectiveAuthenticated && canCreateRoomRole(effectiveRole);
+  const roleLabel = effectiveRole === "ADMIN" ? "Admin" : effectiveRole === "REFEREE" ? "Trọng tài" : "Tuyển thủ";
   const [costPerPoint, setCostPerPoint] = useState(String(DEFAULT_COST_PER_POINT));
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
+  useEffect(() => {
+    let cancelled = false;
+    authFetch("/api/auth/me", { cache: "no-store" })
+      .then(async (response) => {
+        if (!response.ok || cancelled) return;
+        const body = await response.json().catch(() => null);
+        if (!body || cancelled) return;
+        setTabUser({
+          email: body.email ?? null,
+          name: body.name ?? null,
+          role: body.role ?? null,
+        });
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   async function createRoom() {
-    if (!authenticated) {
+    if (!effectiveAuthenticated) {
       router.push("/login?redirect=/");
       return;
     }
@@ -53,7 +77,7 @@ export function HomeClient({ authenticated, userEmail, userName, userRole }: Hom
     playClickSound();
 
     const clientId = getOrCreateClientId();
-    const response = await fetch("/api/room", {
+    const response = await authFetch("/api/room", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ costPerPoint: cpp, clientId }),
@@ -79,21 +103,21 @@ export function HomeClient({ authenticated, userEmail, userName, userRole }: Hom
 
   return (
     <>
-      {authenticated && (
+      {effectiveAuthenticated && (
         <div className="home-userbar">
           <div className="home-userbar__profile">
             <span className="home-userbar__avatar">
               {canCreateRoom ? <Crown size={18} /> : <Gamepad2 size={18} />}
             </span>
             <div>
-              <p className="home-userbar__name">{userName ?? userEmail}</p>
+              <p className="home-userbar__name">{effectiveName ?? effectiveEmail}</p>
               <p className="home-userbar__meta">
-                {roleLabel} · {userEmail}
+                {roleLabel} · {effectiveEmail}
               </p>
             </div>
           </div>
           <div className="home-userbar__actions">
-            {userRole === "ADMIN" && (
+            {effectiveRole === "ADMIN" && (
               <Link href="/admin" className="home-userbar__admin">
                 <Shield size={13} />
                 Admin
@@ -142,7 +166,7 @@ export function HomeClient({ authenticated, userEmail, userName, userRole }: Hom
               </div>
           )}
 
-          {!authenticated ? (
+          {!effectiveAuthenticated ? (
             <div className="role-card__action">
               <p className="role-card__hint">
                 Cần đăng nhập tài khoản trọng tài để bắt đầu tạo phòng thi đấu mới.
@@ -203,7 +227,7 @@ export function HomeClient({ authenticated, userEmail, userName, userRole }: Hom
           </p>
 
           <div className="role-card__action">
-            {!authenticated ? (
+            {!effectiveAuthenticated ? (
               <>
                 <p className="role-card__hint">
                   Đăng ký tài khoản PLAYER để login, sau đó nhập UID Genshin trong sảnh chờ và nhận lời mời từ trọng tài.

@@ -9,7 +9,7 @@ export type CreateAuthUserResult =
   | { ok: false; message: string };
 
 export interface AuthProvider {
-  getCurrentUser(): Promise<AuthUser | null>;
+  getCurrentUser(accessToken?: string | null): Promise<AuthUser | null>;
   createPlayerUser(input: { email: string; password: string; name: string }): Promise<CreateAuthUserResult>;
   createRefereeUser(input: { email: string; password: string; name: string }): Promise<CreateAuthUserResult>;
 }

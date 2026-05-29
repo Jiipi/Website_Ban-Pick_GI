@@ -1,6 +1,7 @@
 "use client";
 
 import { SESSION_KEYS } from "./constants";
+import { createSupabaseBrowserClient } from "./supabase";
 import type { Session, TeamSide, UserRole } from "./types";
 import { isTeamSide, isUserRole } from "./types";
 
@@ -93,4 +94,30 @@ export function clearSession(): void {
   s.removeItem(SESSION_KEYS.role);
   s.removeItem(SESSION_KEYS.team);
   s.removeItem(SESSION_KEYS.roomCode);
+}
+
+export async function getTabAccessToken(): Promise<string | null> {
+  const supabase = createSupabaseBrowserClient();
+  if (!supabase) return null;
+  const { data } = await supabase.auth.getSession();
+  return data.session?.access_token ?? null;
+}
+
+export async function getCurrentTabUser() {
+  const supabase = createSupabaseBrowserClient();
+  if (!supabase) return null;
+  const { data, error } = await supabase.auth.getUser();
+  if (error) return null;
+  return data.user ?? null;
+}
+
+export async function authFetch(input: RequestInfo | URL, init: RequestInit = {}): Promise<Response> {
+  const headers = new Headers(init.headers);
+  const token = await getTabAccessToken();
+  if (token) headers.set("Authorization", `Bearer ${token}`);
+
+  const clientId = getOrCreateClientId();
+  if (clientId) headers.set("X-BP-Client-Id", clientId);
+
+  return fetch(input, { ...init, headers });
 }
