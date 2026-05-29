@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { Save, Search, Trophy, X } from "lucide-react";
 import { BanRow } from "@/components/draft/BanRow";
 import { PickGrid } from "@/components/PickGrid";
-import { getSession } from "@/lib/auth";
+import { authFetch, getSession } from "@/lib/auth";
 import { PICKS_PER_TEAM } from "@/lib/constants";
 import {
   calculateBuildCost,
@@ -252,7 +252,7 @@ export function InlineBuildBoard(props: InlineBuildBoardProps) {
     setError("");
 
     const builds = picks.map((pick) => values[team][pick.characterId] ?? defaultBuild(pick.characterId, characterMap, activeCostCatalog));
-    const response = await fetch("/api/build", {
+    const response = await authFetch("/api/build", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ roomCode, clientId: session.clientId, player: team, builds }),
@@ -304,11 +304,16 @@ export function InlineBuildBoard(props: InlineBuildBoardProps) {
 
   async function finishMatch() {
     if (!session || !viewerIsHost) return;
+    if (!canFinishMatch) {
+      setError(`Chưa đủ build để tổng kết: Đội Xanh ${blueSummary.submitted}/${PICKS_PER_TEAM}, Đội Đỏ ${redSummary.submitted}/${PICKS_PER_TEAM}. Hai đội cần bấm Lưu.`);
+      playErrorSound();
+      return;
+    }
     setFinishBusy(true);
     setError("");
     playClickSound();
 
-    const response = await fetch(`/api/room/${roomCode}/host`, {
+    const response = await authFetch(`/api/room/${roomCode}/host`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ clientId: session.clientId, action: "FINISH_MATCH" }),
@@ -361,6 +366,7 @@ export function InlineBuildBoard(props: InlineBuildBoardProps) {
       : effectiveViewerClientId && redClientId === effectiveViewerClientId
         ? "RED"
         : null);
+  const canFinishMatch = blueSummary.submitted >= PICKS_PER_TEAM && redSummary.submitted >= PICKS_PER_TEAM;
   const buildTeam = viewerIsHost ? null : viewerTeam;
   const playerBuild = buildTeam
     ? {
@@ -481,12 +487,13 @@ export function InlineBuildBoard(props: InlineBuildBoardProps) {
         {viewerIsHost ? (
           <button
             className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-amber-400/60 bg-amber-500/15 px-4 text-sm font-black uppercase tracking-wide text-amber-200 transition hover:bg-amber-500/25 disabled:cursor-wait disabled:opacity-60"
-            disabled={finishBusy}
+            disabled={finishBusy || !canFinishMatch}
             onClick={finishMatch}
+            title={!canFinishMatch ? `Chưa đủ build: Xanh ${blueSummary.submitted}/${PICKS_PER_TEAM}, Đỏ ${redSummary.submitted}/${PICKS_PER_TEAM}` : undefined}
             type="button"
           >
             <Trophy size={16} />
-            {finishBusy ? "Đang tổng kết..." : "Tổng kết"}
+            {finishBusy ? "Đang tổng kết..." : canFinishMatch ? "Tổng kết" : "Chưa đủ build"}
           </button>
         ) : (
           <span className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-amber-400/40 bg-amber-500/10 px-4 text-xs font-black uppercase tracking-wide text-amber-200">

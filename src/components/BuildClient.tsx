@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { CostCalculator } from "@/components/CostCalculator";
-import { getSession } from "@/lib/auth";
+import { authFetch, getSession } from "@/lib/auth";
 import { PICKS_PER_TEAM } from "@/lib/constants";
 import { canEditBuild } from "@/lib/permissions";
 import type { Session, TeamSide } from "@/lib/types";
@@ -157,7 +157,7 @@ export function BuildClient({
     setLoading(true);
     setError("");
 
-    const response = await fetch("/api/build", {
+    const response = await authFetch("/api/build", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ roomCode, clientId: session.clientId, player: tab, builds }),

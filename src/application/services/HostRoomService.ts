@@ -1,7 +1,7 @@
 import type { BanPickRepository } from "@/application/ports/BanPickRepository";
 import { failure, success } from "@/application/shared/ServiceResult";
 import { requireClientId } from "@/application/shared/payload";
-import { isValidCostPerPoint, TURN_DURATION_SECONDS, BANK_TIME_SECONDS } from "@/domain/common/constants";
+import { isValidCostPerPoint, TURN_DURATION_SECONDS, BANK_TIME_SECONDS, TOTAL_BUILDS } from "@/domain/common/constants";
 import { draftPolicy, SKIPPED_CHARACTER_ID } from "@/domain/draft/DraftPolicy";
 import { normalizeConstraints } from "@/domain/tournament/TournamentConstraints";
 import { isValidDiscordWebhookUrl } from "@/domain/webhook/DiscordWebhook";
@@ -121,6 +121,10 @@ export class HostRoomService {
       case "FINISH_MATCH": {
         if (room.status !== "BUILDING") {
           return failure(400, "Chỉ tổng kết từ trạng thái BUILDING");
+        }
+        const buildCount = await this.repository.countCharacterBuilds(room.id);
+        if (buildCount < TOTAL_BUILDS) {
+          return failure(400, `Chưa đủ build để tổng kết (${buildCount}/${TOTAL_BUILDS}). Hai đội cần bấm Lưu trước.`);
         }
         const updated = await this.repository.updateRoom(room.id, { status: "FINISHED" });
         return success({ room: updated });
