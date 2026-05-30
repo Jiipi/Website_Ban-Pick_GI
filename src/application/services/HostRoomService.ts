@@ -1,7 +1,10 @@
 import type { BanPickRepository } from "@/application/ports/BanPickRepository";
+import type { CostCatalogRepository } from "@/application/ports/CostCatalogRepository";
 import { failure, success } from "@/application/shared/ServiceResult";
 import { requireClientId } from "@/application/shared/payload";
 import { isValidCostPerPoint, TURN_DURATION_SECONDS, BANK_TIME_SECONDS, TOTAL_BUILDS } from "@/domain/common/constants";
+import { isTeamSide, type TeamSide } from "@/domain/common/types";
+import { calculateBuildCost, makeBuildCostSnapshot } from "@/domain/cost/CostCatalog";
 import { draftPolicy, SKIPPED_CHARACTER_ID } from "@/domain/draft/DraftPolicy";
 import { normalizeConstraints } from "@/domain/tournament/TournamentConstraints";
 import { isValidDiscordWebhookUrl } from "@/domain/webhook/DiscordWebhook";
@@ -42,7 +45,10 @@ function isHostAction(value: unknown): value is HostAction {
 }
 
 export class HostRoomService {
-  constructor(private readonly repository: BanPickRepository) {}
+  constructor(
+    private readonly repository: BanPickRepository,
+    private readonly costCatalogRepository: CostCatalogRepository,
+  ) {}
 
   async handleAction(roomCode: string, payload: Record<string, unknown>) {
     const clientIdResult = requireClientId(payload);
@@ -122,6 +128,50 @@ export class HostRoomService {
         if (room.status !== "BUILDING") {
           return failure(400, "Chỉ tổng kết từ trạng thái BUILDING");
         }
+        const buildPayloads = readHostFinishBuilds(payload.builds);
+        if (buildPayloads.length > 0) {
+          const logs = await this.repository.findDraftLogs(room.id);
+          const pickedByTeam = new Map<TeamSide, Set<string>>([
+            ["BLUE", new Set(draftPolicy.getTeamPicks(logs, "BLUE").map((log) => log.characterId))],
+            ["RED", new Set(draftPolicy.getTeamPicks(logs, "RED").map((log) => log.characterId))],
+          ]);
+          const costCatalog = await this.costCatalogRepository.read();
+
+          await this.repository.withTransaction(async (tx) => {
+            for (const build of buildPayloads) {
+              const pickedIds = pickedByTeam.get(build.player);
+              if (!pickedIds?.has(build.characterId)) continue;
+
+              const cost = calculateBuildCost(costCatalog, {
+                characterId: build.characterId,
+                characterRarity: build.rarity,
+                consLevel: build.consLevel,
+                weaponId: build.weaponId,
+                weaponRarity: build.weaponRarity,
+                weaponRefinement: build.weaponRefinement,
+              });
+
+              await tx.upsertCharacterBuild({
+                roomId: room.id,
+                player: build.player,
+                characterId: build.characterId,
+                rarity: build.rarity,
+                consLevel: build.consLevel,
+                weaponRarity: build.weaponRarity,
+                totalCost: Math.round(cost.totalCost),
+                enkaSnapshot: makeBuildCostSnapshot({
+                  weaponId: build.weaponId,
+                  weaponName: build.weaponName,
+                  weaponIconUrl: build.weaponIconUrl,
+                  weaponType: build.weaponType,
+                  weaponRefinement: build.weaponRefinement,
+                  cost,
+                }),
+              });
+            }
+          });
+        }
+
         const buildCount = await this.repository.countCharacterBuilds(room.id);
         if (buildCount < TOTAL_BUILDS) {
           return failure(400, `Chưa đủ build để tổng kết (${buildCount}/${TOTAL_BUILDS}). Hai đội cần bấm Lưu trước.`);
@@ -399,4 +449,65 @@ export class HostRoomService {
       }
     }
   }
+}
+
+type HostFinishBuildPayload = {
+  player: TeamSide;
+  characterId: string;
+  rarity: number;
+  consLevel: number;
+  weaponRarity: number;
+  weaponRefinement: number | null;
+  weaponId: string | null;
+  weaponName: string | null;
+  weaponIconUrl: string | null;
+  weaponType: string | null;
+};
+
+function readHostFinishBuilds(value: unknown): HostFinishBuildPayload[] {
+  const rows = Array.isArray(value)
+    ? value
+    : value && typeof value === "object"
+      ? Object.values(value as Record<string, unknown>).flatMap((item) => Array.isArray(item) ? item : [])
+      : [];
+
+  return rows.flatMap((row) => {
+    if (!row || typeof row !== "object") return [];
+    const record = row as Record<string, unknown>;
+    const player = record.player;
+    if (!isTeamSide(player)) return [];
+
+    const characterId = stringOrNull(record.characterId, 120);
+    const rarity = Number(record.rarity);
+    const consLevel = Number(record.consLevel);
+    const weaponRarity = Number(record.weaponRarity);
+    if (!characterId || ![4, 5].includes(rarity) || !Number.isInteger(consLevel) || consLevel < 0 || consLevel > 6 || ![4, 5].includes(weaponRarity)) {
+      return [];
+    }
+
+    const weaponId = stringOrNull(record.weaponId, 120);
+    const refinementRaw = Number(record.weaponRefinement);
+    const weaponRefinement = weaponId
+      ? Number.isInteger(refinementRaw) && refinementRaw >= 1 && refinementRaw <= 5
+        ? refinementRaw
+        : 1
+      : null;
+
+    return [{
+      player,
+      characterId,
+      rarity,
+      consLevel,
+      weaponRarity,
+      weaponRefinement,
+      weaponId,
+      weaponName: stringOrNull(record.weaponName, 120),
+      weaponIconUrl: stringOrNull(record.weaponIconUrl, 500),
+      weaponType: stringOrNull(record.weaponType, 40),
+    }];
+  });
+}
+
+function stringOrNull(value: unknown, maxLength: number): string | null {
+  return typeof value === "string" && value.trim() ? value.trim().slice(0, maxLength) : null;
 }

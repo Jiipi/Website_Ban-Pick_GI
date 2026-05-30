@@ -228,22 +228,6 @@ export function InlineBuildBoard(props: InlineBuildBoardProps) {
     () => summarizeTeam("RED", redPicks, values.RED, activeBuilds, characterMap, activeCostCatalog),
     [redPicks, values.RED, activeBuilds, characterMap, activeCostCatalog],
   );
-  const blueSavedSummary = useMemo(
-    () => summarizeTeam("BLUE", bluePicks, values.BLUE, savedBuilds, characterMap, activeCostCatalog),
-    [bluePicks, values.BLUE, savedBuilds, characterMap, activeCostCatalog],
-  );
-  const redSavedSummary = useMemo(
-    () => summarizeTeam("RED", redPicks, values.RED, savedBuilds, characterMap, activeCostCatalog),
-    [redPicks, values.RED, savedBuilds, characterMap, activeCostCatalog],
-  );
-  const blueDisplaySummary = useMemo(
-    () => ({ ...blueSummary, submitted: blueSavedSummary.submitted }),
-    [blueSummary, blueSavedSummary.submitted],
-  );
-  const redDisplaySummary = useMemo(
-    () => ({ ...redSummary, submitted: redSavedSummary.submitted }),
-    [redSummary, redSavedSummary.submitted],
-  );
   const lead = useMemo(
     () => calculateLead(blueSummary.total, redSummary.total, costPerPoint),
     [blueSummary.total, redSummary.total, costPerPoint],
@@ -328,11 +312,6 @@ export function InlineBuildBoard(props: InlineBuildBoardProps) {
 
   async function finishMatch() {
     if (!session || !viewerIsHost) return;
-    if (!canFinishMatch) {
-      setError(`Chưa đủ build để tổng kết: Đội Xanh ${blueSavedSummary.submitted}/${PICKS_PER_TEAM}, Đội Đỏ ${redSavedSummary.submitted}/${PICKS_PER_TEAM}. Hai đội cần bấm Lưu.`);
-      playErrorSound();
-      return;
-    }
     setFinishBusy(true);
     setError("");
     playClickSound();
@@ -340,7 +319,14 @@ export function InlineBuildBoard(props: InlineBuildBoardProps) {
     const response = await authFetch(`/api/room/${roomCode}/host`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ clientId: session.clientId, action: "FINISH_MATCH" }),
+      body: JSON.stringify({
+        clientId: session.clientId,
+        action: "FINISH_MATCH",
+        builds: [
+          ...hostFinishBuildPayload("BLUE", bluePicks, values.BLUE, characterMap, activeCostCatalog),
+          ...hostFinishBuildPayload("RED", redPicks, values.RED, characterMap, activeCostCatalog),
+        ],
+      }),
     });
 
     setFinishBusy(false);
@@ -390,13 +376,12 @@ export function InlineBuildBoard(props: InlineBuildBoardProps) {
       : effectiveViewerClientId && redClientId === effectiveViewerClientId
         ? "RED"
         : null);
-  const canFinishMatch = blueSavedSummary.submitted >= PICKS_PER_TEAM && redSavedSummary.submitted >= PICKS_PER_TEAM;
   const buildTeam = viewerIsHost ? null : viewerTeam;
   const playerBuild = buildTeam
     ? {
         team: buildTeam,
         tone: TEAM_COPY[buildTeam].tone,
-        summary: buildTeam === "BLUE" ? blueDisplaySummary : redDisplaySummary,
+        summary: buildTeam === "BLUE" ? blueSummary : redSummary,
         picks: buildTeam === "BLUE" ? bluePicks : redPicks,
         values: buildTeam === "BLUE" ? values.BLUE : values.RED,
         canEdit: buildTeam === "BLUE" ? blueCanEdit : redCanEdit,
@@ -448,7 +433,7 @@ export function InlineBuildBoard(props: InlineBuildBoardProps) {
         </section>
       ) : (
         <section className="grid min-h-0 grid-cols-[minmax(220px,260px)_minmax(0,1fr)_minmax(0,1fr)_minmax(220px,260px)] gap-3">
-          <CostPanel tone="blue" summary={blueDisplaySummary} timeAdjustment={lead.blue} />
+          <CostPanel tone="blue" summary={blueSummary} timeAdjustment={lead.blue} />
           <TeamWeaponBoard
             team="BLUE"
             picks={bluePicks}
@@ -475,7 +460,7 @@ export function InlineBuildBoard(props: InlineBuildBoardProps) {
             onOpenWeaponPicker={setWeaponPickerTarget}
             onSave={() => saveTeam("RED", redPicks)}
           />
-          <CostPanel tone="red" summary={redDisplaySummary} timeAdjustment={lead.red} />
+          <CostPanel tone="red" summary={redSummary} timeAdjustment={lead.red} />
         </section>
       )}
 
@@ -501,7 +486,7 @@ export function InlineBuildBoard(props: InlineBuildBoardProps) {
         ) : (
           <>
             <div className="rounded-md border border-cyan-500/30 bg-cyan-950/30 px-4 py-2 text-xs font-black uppercase tracking-wide text-cyan-200">
-              Đội Xanh {blueDisplaySummary.submitted}/{PICKS_PER_TEAM}
+              Đội Xanh {blueSummary.submitted}/{PICKS_PER_TEAM}
             </div>
             <div className="flex min-h-10 flex-wrap items-center justify-center gap-2 rounded-md border border-emerald-500/30 bg-emerald-950/30 px-3 py-2 text-xs font-black uppercase tracking-wide text-emerald-200">
               <span>Hai đội có thể lưu build song song</span>
@@ -511,13 +496,12 @@ export function InlineBuildBoard(props: InlineBuildBoardProps) {
         {viewerIsHost ? (
           <button
             className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-amber-400/60 bg-amber-500/15 px-4 text-sm font-black uppercase tracking-wide text-amber-200 transition hover:bg-amber-500/25 disabled:cursor-wait disabled:opacity-60"
-            disabled={finishBusy || !canFinishMatch}
+            disabled={finishBusy}
             onClick={finishMatch}
-            title={!canFinishMatch ? `Chưa đủ build: Xanh ${blueDisplaySummary.submitted}/${PICKS_PER_TEAM}, Đỏ ${redDisplaySummary.submitted}/${PICKS_PER_TEAM}` : undefined}
             type="button"
           >
             <Trophy size={16} />
-            {finishBusy ? "Đang tổng kết..." : canFinishMatch ? "Tổng kết" : "Chưa đủ build"}
+            {finishBusy ? "Đang tổng kết..." : "Tổng kết"}
           </button>
         ) : (
           <span className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-amber-400/40 bg-amber-500/10 px-4 text-xs font-black uppercase tracking-wide text-amber-200">
@@ -527,7 +511,7 @@ export function InlineBuildBoard(props: InlineBuildBoardProps) {
         )}
         {!playerBuild && (
           <div className="rounded-md border border-rose-500/30 bg-rose-950/30 px-4 py-2 text-right text-xs font-black uppercase tracking-wide text-rose-200">
-            Đội Đỏ {redDisplaySummary.submitted}/{PICKS_PER_TEAM}
+            Đội Đỏ {redSummary.submitted}/{PICKS_PER_TEAM}
           </div>
         )}
       </footer>
@@ -1445,6 +1429,30 @@ function buildPreviewPayload(
         weaponCost: build.weaponCost,
         totalCost: build.totalCost,
       },
+    };
+  });
+}
+
+function hostFinishBuildPayload(
+  team: TeamSide,
+  picks: NamedPick[],
+  values: Record<string, BuildValue>,
+  characterMap: Map<string, GenshinCharacter>,
+  costCatalog: CostCatalog,
+) {
+  return picks.map((pick) => {
+    const build = values[pick.characterId] ?? defaultBuild(pick.characterId, characterMap, costCatalog);
+    return {
+      player: team,
+      characterId: pick.characterId,
+      rarity: build.rarity,
+      consLevel: build.consLevel,
+      weaponRarity: build.weaponRarity,
+      weaponRefinement: build.weaponRefinement,
+      weaponId: build.weaponId,
+      weaponName: build.weaponName,
+      weaponIconUrl: build.weaponIconUrl,
+      weaponType: build.weaponType,
     };
   });
 }

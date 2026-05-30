@@ -78,7 +78,7 @@ export const services = {
   enkaProfile: new EnkaProfileService(enkaGateway),
   friendship: new FriendshipService(friendshipRepository, notificationRepository),
   history: new HistoryService(repository, costCatalogRepository),
-  hostRoom: new HostRoomService(repository),
+  hostRoom: new HostRoomService(repository, costCatalogRepository),
   invite: new InviteService(repository),
   leaderboard: new LeaderboardService(playerStatsRepository),
   lobby: new LobbyService(repository, enkaGateway, authService),
