@@ -2,7 +2,6 @@ import type { BanPickRepository } from "@/application/ports/BanPickRepository";
 import type { CostCatalogRepository } from "@/application/ports/CostCatalogRepository";
 import { failure, success } from "@/application/shared/ServiceResult";
 import { requireClientId } from "@/application/shared/payload";
-import { TOTAL_BUILDS } from "@/domain/common/constants";
 import { isTeamSide } from "@/domain/common/types";
 import { calculateBuildCost, makeBuildCostSnapshot } from "@/domain/cost/CostCatalog";
 import { draftPolicy } from "@/domain/draft/DraftPolicy";
@@ -134,11 +133,6 @@ export class BuildService {
           totalCost: Math.round(cost.totalCost),
           enkaSnapshot: snapshot,
         }));
-      }
-
-      const totalBuildCount = await tx.countCharacterBuilds(room.id);
-      if (totalBuildCount >= TOTAL_BUILDS) {
-        await tx.updateRoom(room.id, { status: "FINISHED" });
       }
 
       return saved;

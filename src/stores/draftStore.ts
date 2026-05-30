@@ -52,6 +52,9 @@ type DraftClientState = {
   setRealtimeBuilds: (builds: RealtimeBuildData[]) => void;
   mergeBuildEntry: (build: RealtimeBuildData) => void;
   removeBuildEntry: (player: string, characterId: string) => void;
+  realtimeBuildPreviews: RealtimeBuildData[];
+  mergeBuildPreviewEntries: (builds: RealtimeBuildData[]) => void;
+  clearBuildPreviewEntries: (player?: string) => void;
   realtimeCostCatalog: CostCatalog | null;
   setRealtimeCostCatalog: (catalog: CostCatalog) => void;
 
@@ -219,6 +222,20 @@ export const useDraftStore = create<DraftClientState>((set, get) => ({
     const merged = (s.realtimeBuilds ?? []).filter((item) => item.player !== player || item.characterId !== characterId);
     return { realtimeBuilds: merged, realtimeBuildCount: merged.length };
   }),
+  realtimeBuildPreviews: [],
+  mergeBuildPreviewEntries: (builds) => set((s) => {
+    let merged = s.realtimeBuildPreviews;
+    for (const build of builds) {
+      merged = merged.filter((item) => item.player !== build.player || item.characterId !== build.characterId);
+      merged = [...merged, { ...build, source: "PREVIEW" }];
+    }
+    return { realtimeBuildPreviews: merged };
+  }),
+  clearBuildPreviewEntries: (player) => set((s) => ({
+    realtimeBuildPreviews: player
+      ? s.realtimeBuildPreviews.filter((build) => build.player !== player)
+      : [],
+  })),
   realtimeCostCatalog: null,
   setRealtimeCostCatalog: (catalog) => set({ realtimeCostCatalog: catalog }),
 

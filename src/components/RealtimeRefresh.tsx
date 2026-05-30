@@ -36,6 +36,8 @@ export function RealtimeRefresh({ roomId, roomCode }: Props) {
   const setRealtimeBuilds = useDraftStore((s) => s.setRealtimeBuilds);
   const mergeBuildEntry = useDraftStore((s) => s.mergeBuildEntry);
   const removeBuildEntry = useDraftStore((s) => s.removeBuildEntry);
+  const mergeBuildPreviewEntries = useDraftStore((s) => s.mergeBuildPreviewEntries);
+  const clearBuildPreviewEntries = useDraftStore((s) => s.clearBuildPreviewEntries);
   const setRealtimeCostCatalog = useDraftStore((s) => s.setRealtimeCostCatalog);
   const mergeLogEntry = useDraftStore((s) => s.mergeLogEntry);
   const setFetchRoomData = useDraftStore((s) => s.setFetchRoomData);
@@ -276,23 +278,24 @@ export function RealtimeRefresh({ roomId, roomCode }: Props) {
       .on("broadcast", { event: "build_saved" }, (payload) => {
         const data = payload.payload;
         if (data.clientId === myClientId) return;
+        if (typeof data.team === "string") {
+          clearBuildPreviewEntries(data.team);
+        }
         void fetchRoomData();
       })
       .on("broadcast", { event: "build_preview" }, (payload) => {
         const data = payload.payload;
         if (data.clientId === myClientId || !Array.isArray(data.builds)) return;
-        for (const build of data.builds) {
-          if (build && typeof build === "object") {
-            mergeBuildEntry(build as Parameters<typeof mergeBuildEntry>[0]);
-          }
-        }
+        mergeBuildPreviewEntries(
+          data.builds.filter((build: unknown) => build && typeof build === "object") as Parameters<typeof mergeBuildPreviewEntries>[0],
+        );
       })
       .subscribe();
 
     return () => {
       supabase.removeChannel(buildChan);
     };
-  }, [roomCode, fetchRoomData]);
+  }, [roomCode, fetchRoomData, mergeBuildPreviewEntries, clearBuildPreviewEntries]);
 
   // ── Supabase broadcast: ready check from captains ──
   const setBlueReady = useDraftStore((s) => s.setBlueReady);
